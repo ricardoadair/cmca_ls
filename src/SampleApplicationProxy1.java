@@ -10,8 +10,11 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.GridLayout;
 import java.awt.Point;
 import java.awt.PopupMenu;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.ParseException;
@@ -27,9 +30,13 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import javax.swing.BorderFactory;
+import javax.swing.ButtonGroup;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 
 import com.luciad.datamodel.ILcdDataObject;
@@ -47,6 +54,7 @@ import com.luciad.model.ILcdModelReference;
 import com.luciad.model.TLcd2DBoundsIndexedModel;
 import com.luciad.model.TLcdModelDescriptor;
 import com.luciad.model.TLcdVectorModel;
+import com.luciad.reference.ILcdGeoReference;
 import com.luciad.reference.ILcdGeocentricReference;
 import com.luciad.reference.ILcdGeodeticReference;
 import com.luciad.reference.TLcdGeodeticReference;
@@ -68,15 +76,20 @@ import com.luciad.shape.shape3D.TLcdLonLatHeightPolypoint;
 import com.luciad.shape.shape3D.TLcdXYZPoint;
 import com.luciad.shape.shape3D.TLcdXYZPolygon;
 import com.luciad.shape.shape3D.TLcdXYZPolypoint;
+import com.luciad.tea.ALcdTerrainElevationProvider;
+import com.luciad.tea.TLcdFixedLevelBasedRasterElevationProvider;
+import com.luciad.tea.TLcdHeightProviderAdapter;
 import com.luciad.util.ILcdFireEventMode;
 import com.luciad.util.ILcdSelectionListener;
 import com.luciad.util.TLcdHasGeometryAnnotation;
 import com.luciad.util.TLcdOutOfBoundsException;
 import com.luciad.util.concurrent.TLcdLockUtil;
+import com.luciad.util.height.ILcdHeightProvider;
 import com.luciad.util.measure.ILcdLayerMeasureProviderFactory;
 import com.luciad.util.measure.ILcdModelMeasureProviderFactory;
 import com.luciad.view.ILcdXYZWorldReference;
 import com.luciad.view.lightspeed.controller.ILspController;
+import com.luciad.view.lightspeed.controller.ruler.TLspRulerController.MeasureMode;
 import com.luciad.view.lightspeed.layer.ILspLayer;
 import com.luciad.view.lightspeed.layer.TLspCompositeLayerFactory;
 import com.luciad.view.lightspeed.layer.shape.TLspShapeLayerBuilder;
@@ -92,7 +105,6 @@ import com.luciad.view.lightspeed.util.TLspViewNavigationUtil;
 import com.luciad.view.swing.ALcdBalloonDescriptor;
 import com.luciad.view.swing.ILcdBalloonContentProvider;
 import com.luciad.view.swing.TLcdModelElementBalloonDescriptor;
-
 import org.jdesktop.swingx.VerticalLayout;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -129,7 +141,17 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   private TLspScaleIndicator scaleIndicator;
   TLspViewNavigationUtil navigationUtil;
   public JLabel coords;
-    
+  
+  //Distance
+  JPanel distance_panel;
+  //String file_med = "Data/Dted/Alps/dmed";
+  String file_med = "";
+  private TerrainRulerController fTerrainRulerController = new TerrainRulerController();
+  ILspLayer dtedLayer = null;
+  private boolean distance_mode = false;
+  private static final TLcdLonLatPoint FIRST_POINT = new TLcdLonLatPoint(10, 45);
+  int track_layer_distance = 0;
+  
   //Layers
   private final Map<Integer, Map<String, Object >> fPolygonTrackLayers;
   LayerFactory layerFactory = new LayerFactory();
@@ -175,15 +197,23 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       overlay.add(luciadLogo);
       layout.putConstraint(luciadLogo, TLcdOverlayLayout.Location.SOUTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
 */
+      //Laber for coords
       coords = new JLabel("");
       coords.setBackground(Color.LIGHT_GRAY);
       coords.setForeground(Color.BLACK);
       coords.setOpaque(true);
       overlay.add(coords);
+      layout.putConstraint(coords, TLcdOverlayLayout.Location.NORTH, TLcdOverlayLayout.ResolveClash.VERTICAL);
+      
       PopupMenu jpop = new PopupMenu();
       jpop.add("uno");
       overlay.add(jpop);
-      layout.putConstraint(coords, TLcdOverlayLayout.Location.NORTH, TLcdOverlayLayout.ResolveClash.VERTICAL);
+      
+      //Panel to distance
+      distance_panel = buildMeasureModePanel();
+      distance_panel.setVisible(false);
+      overlay.add(distance_panel);
+      layout.putConstraint(distance_panel, TLcdOverlayLayout.Location.NORTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
       
       TLspBalloonManager mgr = new TLspBalloonManager(
           getView(),
@@ -222,9 +252,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       
       //Cheking opacity
       
-	  /*prueba_opacity_layer_id = addTrackLayerPolygon("Prueba opacity", "EPSG:4326");
-	  addTrack(prueba_opacity_layer_id, 115, 0, 0, 0, "Poligono Prueba opacity", 0);
-      addPolygon(prueba_opacity_layer_id, 9999, generate3DRandomPolygon(), "Polygono " + 9999, 0);*/
+	  //prueba_opacity_layer_id = addTrackLayerPolygon("2", "EPSG:4326");
+      //addPolygon(prueba_opacity_layer_id, 9999, generate3DRandomPolygon(), "Polygono " + 9999, 0);
+	  /*prueba_opacity_layer_id = addTrackLayer("2", "EPSG:4326");
+	  addTrack(prueba_opacity_layer_id, 1434, -80, 15, 0, "Poligono Prueba opacity", 0);*/
       
     });
 
@@ -236,9 +267,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     
 	timer.scheduleAtFixedRate(update, 200, 200, TimeUnit.MILLISECONDS);
 	
-	//timer.scheduleAtFixedRate(update_all_layers_opacity, 15, 5, TimeUnit.SECONDS);
+	//timer.scheduleAtFixedRate(update_all_layers_opacity, 10, 5, TimeUnit.SECONDS);
   }
-  
   
   int prueba_opacity_layer_id = 0;
   float opacity = 0.9f;
@@ -263,7 +293,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			  if(0< opacity && opacity < 1)
 			  {
 				  opacity(prueba_opacity_layer_id, opacity);
-			  
 			  }
 		  }
 	  }
@@ -296,6 +325,46 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  }
 	};
 	
+	private JPanel buildMeasureModePanel() {
+	    JRadioButton geodeticMeasureModeRadioButton = new JRadioButton( "Geodetic" );
+	    geodeticMeasureModeRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_GEODETIC);
+	      }
+	    });
+
+	    JRadioButton rhumbLineMeasureModeRadioButton = new JRadioButton( "Constant azimuth" );
+	    rhumbLineMeasureModeRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_RHUMB);
+	      }
+	    });
+	    geodeticMeasureModeRadioButton.setSelected(true);
+
+	    JCheckBox terrainModeCheckbox = new JCheckBox( "Over terrain" );
+	    terrainModeCheckbox.setSelected(false);
+	    terrainModeCheckbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean useTerrain = e.getStateChange() == ItemEvent.SELECTED;
+	        fTerrainRulerController.setUseTerrain(useTerrain);
+	      }
+	    });
+	    fTerrainRulerController.setUseTerrain(false);
+	    
+	    ButtonGroup measureModesGroup = new ButtonGroup();
+	    measureModesGroup.add(geodeticMeasureModeRadioButton);
+	    measureModesGroup.add(rhumbLineMeasureModeRadioButton);
+
+	    JPanel measureModePanel = new JPanel( new GridLayout( 3, 1 ) );
+	    measureModePanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+	    measureModePanel.add(geodeticMeasureModeRadioButton);
+	    measureModePanel.add(rhumbLineMeasureModeRadioButton);
+	    measureModePanel.add(terrainModeCheckbox);
+
+	    //return TitledPanel.createTitledPanel( "Measure mode", measureModePanel );
+	    return measureModePanel;
+	  }
+	
 	public void centerMap(double lat, double lng) 
 	{
 //		try {
@@ -311,6 +380,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		distanceMode();
 	}
 	
 	public void zoom(double aFactor)
@@ -323,12 +394,25 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       float alphaChange = 0.05f * (-wheelRotation);
       float currentOpacity = aLayers.get(0).getLayerStyle().getOpacity();
       float newOpacity = currentOpacity + alphaChange;*/
-		ILspLayer layer = fTrackLayers.get(aLayerId);
-	    if (layer != null) {
+	    //if (layer != null) {
 	    	System.out.println( "newOpacity" + newOpacity );
-	    	layer.setLayerStyle(layer.getLayerStyle().asBuilder().opacity(newOpacity).build());
-	    	System.out.println( "getOpacity" + layer.getLayerStyle().getOpacity() );
-	    }
+	    	ILspLayer aLayer = getView().getLayer(aLayerId);
+	    	aLayer.setLayerStyle(aLayer.getLayerStyle().asBuilder().opacity(newOpacity).build());
+	    	
+	    	 TLspLayerStyle layerStyle = aLayer.getLayerStyle();
+	    	    aLayer.setLayerStyle(createNightBackgroundLayerStyle().asBuilder().opacity(layerStyle.getOpacity()-0.1f).build());
+	    	    ILcdModel model = aLayer.getModel();
+	    	    model.fireCollectedModelChanges();
+	    	
+	    	//fBackgroundLayer.setLayerStyle(fCurrentBackgroundStyle.asBuilder().opacity(layerStyle.getOpacity()).build());
+	    	//layer.setLayerStyle(createNightBackgroundLayerStyle());
+	    	
+//	    	ILcdModel model = layer.getModel();
+//	        try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
+//	          model.elementChanged(layer, ILcdModel.FIRE_LATER);
+//	        }
+//	        model.fireCollectedModelChanges();
+	   // }
 	}
 	
 	 private static TLspLayerStyle createNightBackgroundLayerStyle() {
@@ -382,6 +466,16 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	public void setFlir(String new_flir)
 	{
 		flir = new_flir;
+	}
+	
+	public void setFileElevationInformation(String new_file_name)
+	{
+		file_med = new_file_name;
+	}
+	
+	public String getFileElevationInformation()
+	{
+		return file_med;
 	}
 	
 	public void update_map()
@@ -523,9 +617,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  return addTrackLayer(aLayerName, aEPSG, 2);
   }
   
+  public int addTrackLayerDistance(String aLayerName, String aEPSG) {
+	  return addTrackLayer(aLayerName, aEPSG, 3);
+  }
+  
   public int addTrackLayer(String aLayerName, String aEPSG, int type_layer) {
     try {
-      ILcdModelReference reference = new TLcdEPSGReferenceParser().parseModelReference(aEPSG);
+    	ILcdModelReference reference = new TLcdEPSGReferenceParser().parseModelReference(aEPSG);
       ILspLayer layer;
       TLspCompositeLayerFactory factory;
       switch (type_layer) {
@@ -540,6 +638,19 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			TLcdVectorModel model_polygon = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor("", "SolidShapes", "Solid fill shapes"));
 			Collection<ILspLayer> layers_polygon = factory.createLayers(model_polygon);
 			layer = layers_polygon.iterator().next();
+			break;
+		case 3:
+			if(!file_med.equals(""))
+			{
+				layer = LspDataUtil.instance().model(file_med).layer().label("Alps").addToView(getView()).fit().getLayer();	
+			}
+			else
+			{
+				ILcdModel model = new TLcd2DBoundsIndexedModel(reference, new TLcdModelDescriptor(aLayerName, "Alps", aLayerName));
+			    layer = TLspShapeLayerBuilder.newBuilder()
+			                                             .model(model)
+			                                             .build();
+			}
 			break;
 		default:
 			ILcdModel model = new TLcd2DBoundsIndexedModel(reference, new TLcdModelDescriptor(aLayerName, "Tracks", aLayerName));
@@ -680,6 +791,54 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  rec_polygon_id = -1;
 	  return;
   }
+  
+  public void distanceMode() {
+	  if(distance_mode == false)
+	  {
+		  startDistanceMode();
+	  }
+	  else
+	  {
+		  stopDistanceMode();
+	  }
+  }
+  
+  public void startDistanceMode() {
+	System.out.println("startDistanceMode");
+	defaul_controller = getView().getController();
+	distance_panel.setVisible(true);
+	distance_mode = true;
+	getView().setController(fTerrainRulerController);
+	LspDataUtil.instance().grid().addToView(getView());
+	
+	track_layer_distance = addTrackLayerDistance("Distance", "EPSG:4326");
+	dtedLayer = fTrackLayers.get(track_layer_distance);
+	 
+	if ( dtedLayer != null && !file_med.equals("") ) {
+	  fTerrainRulerController.setTerrainElevationProvider(createAltitudeProvider(dtedLayer.getModel()));
+	}
+  }
+  
+  ILspController defaul_controller;
+  
+  public void stopDistanceMode() {
+	  System.out.println("stopDistanceMode");
+	  distance_panel.setVisible(false);
+	  distance_mode = false;
+	  
+	  removeTrackLayer(track_layer_distance);
+	  
+	  getView().setController(defaul_controller);
+  }
+  
+  private TLcdHeightProviderAdapter createAltitudeProvider(ILcdModel aModel) {
+    return new TLcdHeightProviderAdapter(createHeightProvider(aModel), (ILcdGeoReference) aModel.getModelReference());
+  }
+
+  private ILcdHeightProvider createHeightProvider(ILcdModel aModel) {
+    return HeightProviderUtil.getHeightProvider(aModel, (ILcdGeoReference) aModel.getModelReference(), FIRST_POINT, HeightProviderUtil.DTEDLevel.LEVEL_1);
+  }
+	  
   
   /**
    * Adds a new track with the specified properties to the specified track layer.
@@ -1054,16 +1213,29 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		                	  Map<String,Object> element = getPolygonTrackLayers(id_track);
 		                	  int polygon_layerId = (int)element.get("aLayerId");
 		                	  String pre_polygon_color= element.get("aLayerColor").toString();
+		                	  //Change color
 			        	      if(!color.equals(pre_polygon_color)) {
 			        	    	//Update style layer
-				        	      /*TLcdVectorModel model_polygon = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor("", "SolidShapes", "Solid fill shapes"));
+			        	    	  /*TLcdVectorModel model_polygon = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor("", "SolidShapes", "Solid fill shapes"));
 				        	      TLspLayerStyle aLayerStyle = layerFactory.getSolidFillLayer(model_polygon, false);
 				        	      getView().getLayer(polygon_layerId).setLayerStyle(aLayerStyle);*/
+			        	    	  
+			        	    	  //Delete layer and polygon
+			        	    	  removeTrackLayer(polygon_layerId);
+			        	    	  removePolygonTrackLayers(id_track);
+			        	    	  //Create again layer and polygon
+			        	    	  int polygon_new_layerId = 0;
+			                	  polygon_new_layerId = addTrackLayerPolygon("P" + id_track, "EPSG:4326");
+				    			  addTrack(polygon_new_layerId, 115, 0, 0, 0, "Poligono " + id_track, 0);
+				        	      addPolygon(polygon_new_layerId, id_track, track_points, "Polygono " + id_track, 0);
+				        	      Map<String,Object> new_element = new HashMap<>();
+				        	      new_element.put("aLayerId", polygon_new_layerId);
+				        	      new_element.put("aLayerColor", color);
+				        	      addPolygonTrackLayers(id_track, new_element);
 			        	      }
 			        	      updatePolygon(polygon_layerId, id_track, track_points, 0);
 		                  }
 		                  all_tracks_ids_polygon_database.add(id_track);
-	
 		        	      layerFactory.setDefautlsColor();
 	            	  }
 	              }
