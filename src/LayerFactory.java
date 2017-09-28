@@ -1,5 +1,6 @@
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 
@@ -7,6 +8,7 @@ import javax.imageio.ImageIO;
 
 import com.luciad.earth.model.TLcdEarthModelDescriptor;
 import com.luciad.format.shp.TLcdSHPModelDescriptor;
+import com.luciad.gui.TLcdImageIcon;
 import com.luciad.model.ILcdModel;
 import com.luciad.util.logging.ILcdLogger;
 import com.luciad.util.logging.TLcdLoggerFactory;
@@ -18,8 +20,12 @@ import com.luciad.view.lightspeed.layer.shape.TLspShapeLayerBuilder;
 import com.luciad.view.lightspeed.layer.style.TLspLayerStyle;
 import com.luciad.view.lightspeed.style.ILspTexturedStyle;
 import com.luciad.view.lightspeed.style.ILspWorldElevationStyle;
+import com.luciad.view.lightspeed.style.TLsp3DIconStyle;
 import com.luciad.view.lightspeed.style.TLspFillStyle;
+import com.luciad.view.lightspeed.style.TLspIconStyle;
 import com.luciad.view.lightspeed.style.TLspLineStyle;
+import com.luciad.view.lightspeed.style.TLspVerticalLineStyle;
+import com.luciad.view.lightspeed.style.TLspIconStyle.ScalingMode;
 import com.luciad.view.lightspeed.style.styler.TLspStyler;
 
 
@@ -34,6 +40,16 @@ public class LayerFactory extends ALspSingleLayerFactory {
   private String selection_fill_color = default_selection_fill_color;
   private String fill_color = default_fill_color;
   private String line_color = default_line_color;
+  
+  private String icon_path = "";
+  
+  public String getIconPath() {
+	  return icon_path;
+  }
+  
+  public void setIconPath(String new_icon_path) {
+	  icon_path = new_icon_path;
+  }
   
   public String getSelectionFillColor() {
 	  return selection_fill_color;
@@ -89,7 +105,8 @@ public class LayerFactory extends ALspSingleLayerFactory {
            aModel.getModelDescriptor().getDisplayName().equals("Stipple pattern shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Extruded stipple shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Solid fill shapes") ||
-           aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes");
+           aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes") ||
+           aModel.getModelDescriptor().getDisplayName().equals("Points with icon");
   }
 
   @Override
@@ -106,6 +123,10 @@ public class LayerFactory extends ALspSingleLayerFactory {
       return createSolidFillLayer(aModel, false);
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes")) {
       return createSolidFillLayer(aModel, true);
+    } else if (aModel.getModelDescriptor().getDisplayName().equals("Points with icon")){
+      ILspLayer layer = createPointWithIconLayer(aModel);
+      setIconPath("");
+      return layer;
     }
     //return null;
     return createSimpleLayer(aModel);
@@ -211,17 +232,17 @@ public class LayerFactory extends ALspSingleLayerFactory {
                                                           ILspWorldElevationStyle.ElevationMode.ON_TERRAIN)
                                            .build();
 
+    
+    
     //Return the layer on which we set the created fill styles
-    return TLspShapeLayerBuilder.newBuilder().model(aModel)
-                                .selectable(true)
-                                .bodyEditable(true)
-                                .bodyStyler(TLspPaintState.REGULAR, new TLspStyler(fillStyle,
-                                                                                   lineStyle))
-                                .bodyStyler(TLspPaintState.SELECTED, new TLspStyler(selectedStyle,
-                                                                                    lineStyle))
-                                .bodyStyler(TLspPaintState.EDITED, new TLspStyler(selectedStyle,
-                                                                                  lineStyle))
-                                .build();
+    TLspShapeLayerBuilder layerBuilder = TLspShapeLayerBuilder.newBuilder().model(aModel)
+                .selectable(true)
+                .bodyEditable(true)
+                .bodyStyler(TLspPaintState.REGULAR, new TLspStyler(fillStyle,lineStyle))
+                .bodyStyler(TLspPaintState.SELECTED, new TLspStyler(selectedStyle, lineStyle))
+                .bodyStyler(TLspPaintState.EDITED, new TLspStyler(selectedStyle, lineStyle));
+    return layerBuilder.build();
+                                
   }
   
   public TLspLayerStyle getSolidFillLayer(ILcdModel aModel, boolean aExtruded) {
@@ -287,5 +308,53 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	      return null;
 	    }
    }
+  
+  private ILspLayer createPointWithIconLayer(ILcdModel aModel) {
+	    //Return the layer on which we set the created fill styles
+	    if(!getIconPath().equals("") && new File(getIconPath()).exists()) {
+	    	TLcdImageIcon icon = new TLcdImageIcon(new TLcdImageIcon(getIconPath()));
+	        TLspIconStyle.Builder iconStyleBuilder = TLspIconStyle.newBuilder()
+	            .icon(icon)
+	             //Set icons to have a fixed world size
+	            .scalingMode(ScalingMode.WORLD_SCALING_CLAMPED)
+	            .worldSize(50000)
+	            .scale(1)
+	            //Set the icons' opacity value
+	            .opacity(1.0f);
+	        TLspVerticalLineStyle.Builder<?> lineBuilder = TLspVerticalLineStyle.newBuilder()
+	                .color(hex2Rgb(line_color))
+	                .width(1.0f);
+	        TLspShapeLayerBuilder layerBuilder = TLspShapeLayerBuilder.newBuilder().model(aModel)
+	                .selectable(true)
+	                .bodyEditable(true)
+	                .bodyStyler(TLspPaintState.REGULAR,
+	                        new TLspStyler(
+	                        		iconStyleBuilder.build(),
+	                                lineBuilder.build()
+	                        )
+	                 )
+	                ;
+	    	 return layerBuilder.build();
+	    }
+	    else
+	    {
+	    	//Create the fill styles
+		    TLspFillStyle.Builder fillStylebuilder = TLspFillStyle.newBuilder()
+		                                                          .elevationMode(ILspWorldElevationStyle.ElevationMode.ON_TERRAIN);
+	    	TLspFillStyle fillStyle = fillStylebuilder.color(hex2Rgb(fill_color)).opacity(0.7f).build();
+		    TLspFillStyle selectedStyle = fillStylebuilder.color(hex2Rgb(selection_fill_color)).opacity(0.7f).build();
+		    TLspLineStyle lineStyle = TLspLineStyle.newBuilder().color(hex2Rgb(line_color))
+		                                           .width(2.0)
+		                                           .elevationMode(ILspWorldElevationStyle.ElevationMode.ON_TERRAIN)
+		                                           .build();
+	    	TLspShapeLayerBuilder layerBuilder = TLspShapeLayerBuilder.newBuilder().model(aModel)
+	                .selectable(true)
+	                .bodyEditable(true)
+	                .bodyStyler(TLspPaintState.REGULAR, new TLspStyler(fillStyle,lineStyle))
+	                .bodyStyler(TLspPaintState.SELECTED, new TLspStyler(selectedStyle, lineStyle))
+	                .bodyStyler(TLspPaintState.EDITED, new TLspStyler(selectedStyle, lineStyle));
+	    	return layerBuilder.build();
+	    }                           
+	  }
   
 }

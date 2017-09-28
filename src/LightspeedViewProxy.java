@@ -159,8 +159,6 @@ public class LightspeedViewProxy {
 
   public void handleMousePressed(int aX, int aY, int aButtonId, int aModifiers) {
     fMouseEventHandler.handleMousePressed(aX, aY, aButtonId, aModifiers);
-    //fMouseEventHandler.getPaintPoints();
-    
   }
 
   public void handleMouseReleased(int aX, int aY, int aButtonId, int aModifiers) {

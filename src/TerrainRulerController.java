@@ -40,6 +40,7 @@ import com.luciad.util.ILcdFireEventMode;
 import com.luciad.util.ILcdInvalidateable;
 import com.luciad.util.concurrent.TLcdLockUtil.Lock;
 import com.luciad.view.TLcdAWTEventFilterBuilder;
+import com.luciad.view.lightspeed.controller.ALspController;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerController;
 import com.luciad.view.lightspeed.layer.ILspLayer;
 import com.luciad.view.lightspeed.style.styler.ILspCustomizableStyler;
@@ -68,7 +69,7 @@ class TerrainRulerController extends TLspRulerController {
   private int fMinimumStepSize = 10;
   private boolean fUseTerrain = true;
 
-  public TerrainRulerController() {
+  public TerrainRulerController(ALspController navigationController) {
     setName("Terrain ruler");
     setIcon(TLcdIconFactory.create(TLcdIconFactory.MEASURE_ICON));
     setShortDescription("Terrain Ruler: Click to measure distances over terrain - Double click to stop");
@@ -76,7 +77,7 @@ class TerrainRulerController extends TLspRulerController {
     fNoCircleCircleStyler = new TLspCustomizableStyler(new TLspCustomizableStyle[0]);
     updateCircleStyling();
     setAWTFilter(TLcdAWTEventFilterBuilder.newBuilder().leftMouseButton().or().rightMouseButton().or().keyEvents().build());
-    //appendController(ControllerFactory.createNavigationController());
+    appendController(navigationController);
   }
 
   /**

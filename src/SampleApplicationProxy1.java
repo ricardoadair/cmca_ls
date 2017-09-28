@@ -47,6 +47,7 @@ import com.luciad.datamodel.TLcdDataObject;
 import com.luciad.datamodel.TLcdDataType;
 import com.luciad.datamodel.TLcdDataTypeBuilder;
 import com.luciad.format.database.TLcdPrimaryKeyAnnotation;
+import com.luciad.geodesy.TLcdGeodeticDatum;
 import com.luciad.gui.TLcdAWTUtil;
 import com.luciad.gui.swing.TLcdOverlayLayout;
 import com.luciad.model.ILcdModel;
@@ -144,10 +145,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   
   //Distance
   JPanel distance_panel;
+  JCheckBox terrainModeCheckbox;
   //String file_med = "Data/Dted/Alps/dmed";
   String file_med = "";
-  private TerrainRulerController fTerrainRulerController = new TerrainRulerController();
+  private TerrainRulerController fTerrainRulerController = new TerrainRulerController(createNavigationController());
   ILspLayer dtedLayer = null;
+  boolean load_file_med = false;
   private boolean distance_mode = false;
   private static final TLcdLonLatPoint FIRST_POINT = new TLcdLonLatPoint(10, 45);
   int track_layer_distance = 0;
@@ -155,14 +158,33 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   //Layers
   private final Map<Integer, Map<String, Object >> fPolygonTrackLayers;
   LayerFactory layerFactory = new LayerFactory();
-  int track_layer_points = 0;
+  int track_layer_points_tracks = 0;
+  int track_layer_points_marks = 0;
   int track_layer_draw_polygons = 0;
   private boolean create_polygon_user_clicks = false;
   int polygon_user_clicks_track_id = -1;
   int rec_polygon_id = -1;
   DecimalFormat df = new DecimalFormat("#.0000"); 
+  TLcdLonLatHeightPoint ac_point = null;
+  int track_layer_ac_id = 0;
+  int track_ac_id = -2;
   String ac = "0,0"; 
+  TLcdLonLatHeightPoint flir_point = null;
+  int track_layer_flir_id = 0;
+  int track_flir_id = -3;
   String flir = "0,0";
+  
+  //Icons Paths
+  String base_path = "/home/ricardoadair/CMCA/git_cmca/LVC_CMCA/";
+  String icon_folder_path = "data/Iconos/";
+  String track_icon_name = "Track.png";
+  String marca_icon_name = "Marca.png";
+  String ac_icon_name = "AC.png";
+  String flir_icon_name = "Pos_camera.png";
+  String track_icon_path = "";
+  String marck_icon_path = "";
+  String ac_icon_path = "";
+  String flir_icon_path = "";
 
   public SampleApplicationProxy1(long aNativePeer) {
     super(aNativePeer);
@@ -173,6 +195,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     fAtomicInteger = new AtomicInteger();
     fTrackLayers = new HashMap<>();
     fPolygonTrackLayers = new HashMap<>();
+    update_icons_path();
 
     // Add navigation control, scale indicator and mouse readout to the overlay component.
     TLcdAWTUtil.invokeAndWait(() -> {
@@ -242,13 +265,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           ),
           TLcdOverlayLayout.Location.SOUTH
       );*/
-
-//      
-      //Paint Points
-//      track_layer_points = addTrackLayer("2", "EPSG:4326");
-//      addTrack(track_layer_points, 115, 0, 0, 0, "Puntos", 0);
-//      paintPoints();
-      
       
       //Cheking opacity
       
@@ -341,7 +357,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	    });
 	    geodeticMeasureModeRadioButton.setSelected(true);
 
-	    JCheckBox terrainModeCheckbox = new JCheckBox( "Over terrain" );
+	    terrainModeCheckbox = new JCheckBox( "Over terrain" );
 	    terrainModeCheckbox.setSelected(false);
 	    terrainModeCheckbox.addItemListener(new ItemListener() {
 	      public void itemStateChanged(ItemEvent e) {
@@ -458,14 +474,99 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		}
 	}
 	
+	public void setBasePath(String new_base_path) {
+		base_path = new_base_path;
+		update_icons_path();
+	}
+	
+	public void update_icons_path() {
+		track_icon_path = (
+			( base_path.endsWith("/") ? base_path : base_path + "/" ) + 
+			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			track_icon_name
+		);
+		marck_icon_path = (
+			( base_path.endsWith("/") ? base_path : base_path + "/" )+ 
+			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			marca_icon_name
+		);
+		ac_icon_path = (
+			( base_path.endsWith("/") ? base_path : base_path + "/" )+ 
+			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			ac_icon_name
+		);
+		flir_icon_path = (
+			( base_path.endsWith("/") ? base_path : base_path + "/" )+ 
+			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			flir_icon_name
+		);
+	}
+	
+	public void updateAllIconStyles() 
+	{
+		updateTracksIconStyle();
+		updateMarcksIconStyle();
+		updateAcIconStyle();
+		updateFlirIconStyle();
+	}
+	
+	public void updateTracksIconStyle() 
+	{
+		//Tracks
+		removeTrackLayer(track_layer_points_tracks);
+		layerFactory.setIconPath(track_icon_path);
+		track_layer_points_tracks = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
+		
+	}
+	
+	public void updateMarcksIconStyle() 
+	{
+		//Marks
+		removeTrackLayer(track_layer_points_marks);
+		layerFactory.setIconPath(marck_icon_path);
+		track_layer_points_marks = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
+	}
+	
+	public void updateAcIconStyle() 
+	{
+		//AC
+		removeTrackLayer(track_layer_ac_id);
+		layerFactory.setIconPath(ac_icon_path);
+		track_layer_ac_id = addTrackLayerPointWithIcon("AC layer", "EPSG:4326");
+				
+	}
+	
+	public void updateFlirIconStyle() 
+	{
+		//FLIR
+		removeTrackLayer(track_layer_flir_id);
+		layerFactory.setIconPath(flir_icon_path);
+		track_layer_flir_id = addTrackLayerPointWithIcon("Flir layer", "EPSG:4326");
+		
+	}
+	
 	public void setAc(String new_ac)
 	{
 		ac = new_ac;
+		if(!ac.equals("") && ac.contains(",")) {
+			String[] split = ac.split(",");
+			double x = Double.parseDouble(split[0]);
+			double y = Double.parseDouble(split[1]);
+			double z = 0;
+			ac_point = new TLcdLonLatHeightPoint(x,y,z);
+		}
 	}
 	
 	public void setFlir(String new_flir)
 	{
 		flir = new_flir;
+		if(!flir.equals("") && flir.contains(",")) {
+			String[] split = flir.split(",");
+			double x = Double.parseDouble(split[0]);
+			double y = Double.parseDouble(split[1]);
+			double z = 0;
+			flir_point = new TLcdLonLatHeightPoint(x,y,z);
+		}
 	}
 	
 	public void setFileElevationInformation(String new_file_name)
@@ -480,7 +581,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	
 	public void update_map()
 	{
-	  if(track_layer_points==0) 
+	  if(track_layer_points_tracks == 0 && track_layer_points_marks == 0) 
 	  {
 		  create_points();
 	  }
@@ -491,9 +592,18 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	}
 		
 	public void create_points() {
-		//track_layer_points = addPointTrackLayer("2", "EPSG:4326");
-		track_layer_points = addTrackLayer("2", "EPSG:4326");
-		addTrack(track_layer_points, 115, 0, 0, 0, "Puntos", 0);
+		//Tracks
+		layerFactory.setIconPath(track_icon_path);
+		track_layer_points_tracks = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
+		//Marks
+		layerFactory.setIconPath(marck_icon_path);
+		track_layer_points_marks = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
+		//AC
+		layerFactory.setIconPath(ac_icon_path);
+		track_layer_ac_id = addTrackLayerPointWithIcon("AC layer", "EPSG:4326");
+		//FLIR
+		layerFactory.setIconPath(flir_icon_path);
+		track_layer_flir_id = addTrackLayerPointWithIcon("Flir layer", "EPSG:4326");
 		paintPoints();
 	}
 	
@@ -534,13 +644,26 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   public void loadData(String aSource) {
     System.out.println("loadData(" + aSource + ")");
     try {
-      ILspLayer layer = LspDataUtil
-          .instance()
-          .model(aSource)
-          .layer()
-          .addToView(getView())
-          .getLayer();
-      //fitOnLayers(getView().getOverlayComponent(), getView(), true, layer);
+      //Distance Layer
+      if(aSource.endsWith(".img")) {
+		  dtedLayer = LspDataUtil
+	          .instance()
+	          .model(aSource)
+	          .layer()
+	          .addToView(getView())
+	          .getLayer();
+		  load_file_med = true;
+      }
+      else
+      {
+    	  ILspLayer layer = LspDataUtil
+	          .instance()
+	          .model(aSource)
+	          .layer()
+	          .addToView(getView())
+	          .getLayer();
+      	//fitOnLayers(getView().getOverlayComponent(), getView(), true, layer);
+      }
     } catch (Exception aE) {
       aE.printStackTrace();
     }
@@ -609,7 +732,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  return addTrackLayer(aLayerName, aEPSG, 0);
   }
   
-  public int addTrackLayerPoint(String aLayerName, String aEPSG) {
+  public int addTrackLayerPointWithIcon(String aLayerName, String aEPSG) {
 	  return addTrackLayer(aLayerName, aEPSG, 1);
   }
   
@@ -629,13 +752,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       switch (type_layer) {
 		case 1:
 			factory = new TLspCompositeLayerFactory(layerFactory);
-			TLcdVectorModel model_point = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor("", "Single Points", "Single Points"));
-			Collection<ILspLayer> layers_points = factory.createLayers(model_point);
+			TLcdVectorModel model_p = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor(aLayerName, "IconPoints", "Points with icon"));
+			Collection<ILspLayer> layers_points = factory.createLayers(model_p);
 			layer = layers_points.iterator().next();
 			break;
 		case 2:
 			factory = new TLspCompositeLayerFactory(layerFactory);
-			TLcdVectorModel model_polygon = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor("", "SolidShapes", "Solid fill shapes"));
+			TLcdVectorModel model_polygon = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor(aLayerName, "SolidShapes", "Solid fill shapes"));
 			Collection<ILspLayer> layers_polygon = factory.createLayers(model_polygon);
 			layer = layers_polygon.iterator().next();
 			break;
@@ -710,7 +833,18 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
    * @param aCallSign the call sign
    * @param aTimeStamp the time stamp
    */
-  public void addTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, String aCallSign, long aTimeStamp) {
+  public void addTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, String aCallSign, long aTimeStamp)
+  {
+	  Map<String,Object> data = new HashMap<>();
+	  data.put("name", "");
+      data.put("description", ""); 
+      data.put("course", ""); 
+      data.put("speed", "");
+      data.put("category", ""); 
+      addTrack(aLayerId, aTrackId, aX, aY, aZ, aCallSign, aTimeStamp, data);
+  }
+  
+  public void addTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, String aCallSign, long aTimeStamp, Map<String,Object> data) {
     ILspLayer layer = fTrackLayers.get(aLayerId);
     if (layer != null) {
       ILcdModel model = layer.getModel();
@@ -733,10 +867,36 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           };
         }
 
+        String name = data.containsKey("name") ? data.get("name").toString() : "";
+        String description = data.containsKey("description") ? data.get("description").toString() : "";
+        String course = data.containsKey("course") ? data.get("course").toString() : "";
+        String speed = data.containsKey("speed") ? data.get("speed").toString() : "";
+        String category = data.containsKey("category") ? data.get("category").toString() : "";
+        
         track.setValue(TrackDataTypes.ID, aTrackId);
         track.setValue(TrackDataTypes.LOCATION, location);
-        track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
+        //track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
         track.setValue(TrackDataTypes.CALLSIGN, aCallSign);
+        if(!name.equals(""))
+        {
+        	track.setValue(TrackDataTypes.NAME, name);
+        }
+        if(!description.equals(""))
+        {
+        	track.setValue(TrackDataTypes.DESCRIPTION, description);
+        }
+        if(!course.equals(""))
+        {
+        	track.setValue(TrackDataTypes.COURSE, course);
+        }
+        if(!speed.equals(""))
+        {
+        	track.setValue(TrackDataTypes.SPEED, speed);
+        }
+        if(!category.equals(""))
+        {
+        	track.setValue(TrackDataTypes.CATEGORY, category);
+        }
         model.addElement(track, ILcdModel.FIRE_LATER);
       }
       model.fireCollectedModelChanges();
@@ -810,13 +970,20 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	distance_mode = true;
 	getView().setController(fTerrainRulerController);
 	LspDataUtil.instance().grid().addToView(getView());
-	
-	track_layer_distance = addTrackLayerDistance("Distance", "EPSG:4326");
-	dtedLayer = fTrackLayers.get(track_layer_distance);
-	 
-	if ( dtedLayer != null && !file_med.equals("") ) {
-	  fTerrainRulerController.setTerrainElevationProvider(createAltitudeProvider(dtedLayer.getModel()));
+
+	if(load_file_med == false)
+	{
+		track_layer_distance = addTrackLayerDistance("Distance", "EPSG:4326");
+		dtedLayer = fTrackLayers.get(track_layer_distance);
+		terrainModeCheckbox.setEnabled(false);
 	}
+	else {
+		if ( dtedLayer != null ) {
+			terrainModeCheckbox.setEnabled(true);
+		  fTerrainRulerController.setTerrainElevationProvider(createAltitudeProvider(dtedLayer.getModel()));
+		}
+	}
+
   }
   
   ILspController defaul_controller;
@@ -826,8 +993,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  distance_panel.setVisible(false);
 	  distance_mode = false;
 	  
-	  removeTrackLayer(track_layer_distance);
-	  
+	  if(load_file_med == false)
+	  {
+		  removeTrackLayer(track_layer_distance);
+	  }
 	  getView().setController(defaul_controller);
   }
   
@@ -851,7 +1020,16 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
    * @param aCallSign the call sign
    * @param aTimeStamp the time stamp
    */
-  public void addPolygon(int aLayerId, int aTrackId, TLcd3DEditablePointList polygon, String aCallSign, long aTimeStamp) {
+  
+  public void addPolygon(int aLayerId, int aTrackId, TLcd3DEditablePointList polygon, String aCallSign, long aTimeStamp)
+  {
+	  Map<String,Object> data = new HashMap<>();
+	  data.put("name", "");
+      data.put("description", ""); 
+      addPolygon(aLayerId, aTrackId, polygon, aCallSign, aTimeStamp, data);
+  }
+  
+  public void addPolygon(int aLayerId, int aTrackId, TLcd3DEditablePointList polygon, String aCallSign, long aTimeStamp, Map<String,Object> data) {
 	    ILspLayer layer = fTrackLayers.get(aLayerId);
 	    if (layer != null) {
 	      ILcdModel model = layer.getModel();
@@ -875,11 +1053,15 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	            }
 	          };
 	        }
-
+	        
+	        String name = data.containsKey("name") ? data.get("name").toString() : "";
+	        String description = data.containsKey("description") ? data.get("description").toString() : "";
 	        track.setValue(TrackDataTypes.ID, aTrackId);
 	        track.setValue(TrackDataTypes.LOCATION, location);
-	        track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
+	        //track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
 	        track.setValue(TrackDataTypes.CALLSIGN, aCallSign);
+	        track.setValue(TrackDataTypes.NAME, name);
+	        track.setValue(TrackDataTypes.DESCRIPTION, description);
 	        model.addElement(track, ILcdModel.FIRE_LATER);
 	        
 	      }
@@ -923,7 +1105,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
         ILcdModel model = layer.getModel();
         try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
           ((ILcd3DEditablePoint) track.getValue(TrackDataTypes.LOCATION)).move3D(aX, aY, aZ);
-          track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
+          //track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
           model.elementChanged(track, ILcdModel.FIRE_LATER);
         }
         model.fireCollectedModelChanges();
@@ -957,7 +1139,9 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				  };
 				}
 	          track.setValue(TrackDataTypes.LOCATION, location);
-	          track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
+	          //track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
+	          //track.setValue(TrackDataTypes.NAME, "Nombre");
+		      //track.setValue(TrackDataTypes.DESCRIPTION, "Descripción");
 	          model.elementChanged(track, ILcdModel.FIRE_LATER);
 	        }
 	        model.fireCollectedModelChanges();
@@ -1041,9 +1225,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     static final TLcdDataType TRACK_PLAN_DATA_TYPE;
 
     static final String ID = "id";
-    static final String LOCATION = "location";
-    static final String TIMESTAMP = "timestamp";
+    static final String LOCATION = "Localización";
+    //static final String TIMESTAMP = "timestamp";
     static final String CALLSIGN = "callSign";
+    static final String NAME = "Nombre";
+    static final String DESCRIPTION = "Descripción";
+    static final String COURSE = "Rumbo";
+    static final String SPEED = "Velocidad";
+    static final String CATEGORY = "Categoria";
 
     static final String TRACK_TYPE = "TrackType"; //Starts with capital, same as Java class
 
@@ -1067,8 +1256,15 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       TLcdDataTypeBuilder trackBuilder = builder.typeBuilder(TRACK_TYPE);
       trackBuilder.addProperty(ID, TLcdCoreDataTypes.INTEGER_TYPE);
       trackBuilder.addProperty(LOCATION, geometryType);
-      trackBuilder.addProperty(TIMESTAMP, TLcdCoreDataTypes.LONG_TYPE);
+      //trackBuilder.addProperty(TIMESTAMP, TLcdCoreDataTypes.LONG_TYPE);
       trackBuilder.addProperty(CALLSIGN, TLcdCoreDataTypes.STRING_TYPE);
+      
+      trackBuilder.addProperty(NAME, TLcdCoreDataTypes.STRING_TYPE);
+      trackBuilder.addProperty(DESCRIPTION, TLcdCoreDataTypes.STRING_TYPE);
+      trackBuilder.addProperty(COURSE, TLcdCoreDataTypes.STRING_TYPE);
+      trackBuilder.addProperty(SPEED, TLcdCoreDataTypes.STRING_TYPE);
+      trackBuilder.addProperty(CATEGORY, TLcdCoreDataTypes.STRING_TYPE);
+
 
       // Finalize the creation
       TLcdDataModel dataModel = builder.createDataModel();
@@ -1098,8 +1294,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 
 	        if (object instanceof ILcdDataObject) {
 	        	
-	        	
-	        	
 	          DataObjectDisplayTree t = new DataObjectDisplayTree();
 	          t.setDataObject((ILcdDataObject) object);
 	          t.setDataModel(t.getDataModel());
@@ -1107,20 +1301,16 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	          JScrollPane scroll = new JScrollPane();
 	          scroll.setMinimumSize(new Dimension(150, 100));
 	          scroll.setMaximumSize(new Dimension(250, 100));
-	          
-	          
 
-	          
 	          scroll.setViewportView(t);
 	          //return scroll;
 	          
 	          JPanel jp_ballon = new JPanel();
 	          jp_ballon.setLayout(new VerticalLayout());
-	          jp_ballon.add(new JLabel("uno"));
+	          jp_ballon.add(new JLabel(""));
 	          jp_ballon.add(scroll);
 	          
 	          return jp_ballon;
-	          
 	          
 	        }
 	      }
@@ -1145,11 +1335,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   public void paintPoints() 
   {
 	  try{
-		  //clearTrackLayer(track_layer_points);
 	      List<JSONObject> tracks_list = conection.getTracks();
 	      //Lists to check poins to remove
-	      List<Integer> all_tracks_ids_points = getAllTrackIds(track_layer_points);
-	      List<Integer> tracks_ids_points_database = new ArrayList<Integer>();
+	      List<Integer> all_tracks_ids_points = getAllTrackIds(track_layer_points_tracks);
+	      List<Integer> all_marks_ids_points = getAllTrackIds(track_layer_points_marks);
+	      List<Integer> tracks_ids_points_tracks_database = new ArrayList<Integer>();
+	      List<Integer> tracks_ids_points_marks_database = new ArrayList<Integer>();
 	      //Lists to check polygons to remove
 	      List<Integer> all_tracks_ids_polygon = getAllPolygonTrackLayersIds();
 	      List<Integer> all_tracks_ids_polygon_database = new ArrayList<Integer>();
@@ -1158,22 +1349,56 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      {
 	              float point_x = (float) tracks_list.get(t).get("x_geoposicion");
 	              float point_y = (float) tracks_list.get(t).get("y_geoposicion"); 
+	              Map<String,Object> data = new HashMap<>();
+	              data.put("name", ((JSONObject)tracks_list.get(t)).get("nombre").toString());
+	              data.put("description", ((JSONObject)tracks_list.get(t)).get("descripcion").toString()); 
 	
 	              int type = (int)tracks_list.get(t).get("tipo_dato");
 	              if(type == 1 || type == 2)
 	              {
+	            	  int layer_type = ( 
+	            			  type == 1 
+	            			  ? track_layer_points_tracks 
+	            			  : 
+	            			  (
+	            					  type == 2 
+	            					  ? track_layer_points_marks
+	            					  : 0
+	            			  )  
+	            	  );
 	            	  
-	            	  ILcdDataObject track = getTrack(track_layer_points, (int) tracks_list.get(t).get("ID"));
+	            	  JSONObject datos_json = (JSONObject) ((JSONObject)tracks_list.get(t)).get("datos_json");
+	            	  if(datos_json.containsKey("rumbo"))
+	            	  {
+	            		  data.put("course", datos_json.get("rumbo").toString());
+	            	  }
+	            	  if(datos_json.containsKey("velocidad"))
+	            	  {
+	            		  data.put("speed", datos_json.get("velocidad").toString());
+	            	  }
+	            	  if(datos_json.containsKey("categoria"))
+	            	  {
+	            		  data.put("category", datos_json.get("categoria").toString());  
+	            	  }
+	            	  
+	            	  ILcdDataObject track = getTrack(layer_type, (int) tracks_list.get(t).get("ID"));
 	                  if (track == null) {
-	                  	addTrack(track_layer_points, (int) tracks_list.get(t).get("ID"), point_x, point_y, 0, "TRACK", 0);
+	                  	addTrack( layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, 0, "TRACK", 0, data);
 	                  }
 	              	  else
 	              	  {
-	              		updateTrack(track_layer_points, (int) tracks_list.get(t).get("ID"), point_x, point_y, 0, 0);
+	              		updateTrack(layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, 0, 0);
 	              	  }
-	                  tracks_ids_points_database.add((int) tracks_list.get(t).get("ID"));
+	                  if(type==1)
+	                  {
+	                	  tracks_ids_points_tracks_database.add((int) tracks_list.get(t).get("ID"));
+	                  }
+	                  if(type==2)
+	                  {
+	                	  tracks_ids_points_marks_database.add((int) tracks_list.get(t).get("ID"));
+	                  }
 	              }
-	              else if(type == 3)
+	              else if(type == 3 || type == 4)
 	              {
 	            	  int id_track = (int) tracks_list.get(t).get("ID");
 	            	  //In recording mode the original polygon will'n be paint
@@ -1195,14 +1420,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		                	  color = layerFactory.generateColorRandom();
 		                  }
 		                  //System.out.println("Color polygon: " + color);
-		                  layerFactory.setFillColor(color);
-		                  	
+		                  layerFactory.setFillColor(color);	 		                  
+		                  layerFactory.setIconPath("");                 	
 		                  if(isElementInPolygonTrackLayers(id_track) == false){
 		                	  //Create layer polygon
 		                	  int polygon_new_layerId = 0;
 		                	  polygon_new_layerId = addTrackLayerPolygon("P" + id_track, "EPSG:4326");
-			    			  addTrack(polygon_new_layerId, 115, 0, 0, 0, "Poligono " + id_track, 0);
-			        	      addPolygon(polygon_new_layerId, id_track, track_points, "Polygono " + id_track, 0);
+			        	      addPolygon(polygon_new_layerId, id_track, track_points, "Polygono " + id_track, 0, data);
 			        	      Map<String,Object> new_element = new HashMap<>();
 			        	      new_element.put("aLayerId", polygon_new_layerId);
 			        	      new_element.put("aLayerColor", color);
@@ -1226,8 +1450,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			        	    	  //Create again layer and polygon
 			        	    	  int polygon_new_layerId = 0;
 			                	  polygon_new_layerId = addTrackLayerPolygon("P" + id_track, "EPSG:4326");
-				    			  addTrack(polygon_new_layerId, 115, 0, 0, 0, "Poligono " + id_track, 0);
-				        	      addPolygon(polygon_new_layerId, id_track, track_points, "Polygono " + id_track, 0);
+				        	      addPolygon(polygon_new_layerId, id_track, track_points, "Polygono " + id_track, 0, data);
 				        	      Map<String,Object> new_element = new HashMap<>();
 				        	      new_element.put("aLayerId", polygon_new_layerId);
 				        	      new_element.put("aLayerColor", color);
@@ -1236,29 +1459,62 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			        	      updatePolygon(polygon_layerId, id_track, track_points, 0);
 		                  }
 		                  all_tracks_ids_polygon_database.add(id_track);
+
 		        	      layerFactory.setDefautlsColor();
 	            	  }
 	              }
 	      }
-	      //Remove points 
-	      List<Integer> track_ids_points_remove = all_tracks_ids_points.stream()
-	    	        .filter(i -> !tracks_ids_points_database.contains(i))
+	      
+	      //AC point
+	      if(ac_point != null) {
+		      ILcdDataObject track = getTrack(track_layer_ac_id, track_ac_id);
+	          if (track == null) {
+	          	addTrack(track_layer_ac_id, track_ac_id, ac_point.getX(), ac_point.getY(), ac_point.getZ(), "AC", 0);
+	          }
+	      	  else
+	      	  {
+	      		updateTrack(track_layer_ac_id, track_ac_id, ac_point.getX(), ac_point.getY(), ac_point.getZ(), 0);
+	      	  }
+	      }
+	      
+	      //FLIR point
+	      if(flir_point != null) {
+		      ILcdDataObject track = getTrack(track_layer_flir_id, track_flir_id);
+	          if (track == null) {
+	          	addTrack(track_layer_flir_id, track_flir_id, flir_point.getX(), flir_point.getY(), flir_point.getZ(), "FLIR", 0);
+	          }
+	      	  else
+	      	  {
+	      		updateTrack(track_layer_flir_id, track_flir_id, flir_point.getX(), flir_point.getY(), flir_point.getZ(), 0);
+	      	  }
+	      }
+	      
+	      //Remove points tracks
+	      List<Integer> track_ids_points_traks_remove = all_tracks_ids_points.stream()
+	    	        .filter(i -> !tracks_ids_points_tracks_database.contains(i))
 	    	        .collect(Collectors.toList());
-	      for (Integer track_id_point_remove : track_ids_points_remove) {
-	    	  removeTrack(track_layer_points, track_id_point_remove);
+	      for (Integer track_id_point_remove : track_ids_points_traks_remove) {
+	    	  removeTrack(track_layer_points_tracks, track_id_point_remove);
+	      }
+	      //Remove points marcks
+	      List<Integer> track_ids_points_marks_remove = all_marks_ids_points.stream()
+	    	        .filter(i -> !tracks_ids_points_marks_database.contains(i))
+	    	        .collect(Collectors.toList());
+	      for (Integer track_id_point_remove : track_ids_points_marks_remove) {
+	    	  removeTrack(track_layer_points_marks, track_id_point_remove);
 	      }
 	      //Remove polygons layers
 	      List<Integer> track_ids_polygon_remove = all_tracks_ids_polygon.stream()
 	    	        .filter(i -> !all_tracks_ids_polygon_database.contains(i))
 	    	        .collect(Collectors.toList());
-	      
-	      
 	      for (Integer track_id_polygon_remove : track_ids_polygon_remove) {
 	    	  Map<String,Object> element = getPolygonTrackLayers(track_id_polygon_remove);
         	  int polygon_layerId = (int)element.get("aLayerId");
 	    	  removeTrackLayer(polygon_layerId);
 	    	  removePolygonTrackLayers(track_id_polygon_remove);
 	      }
+	      
+	      
 	  }
 	  catch(Exception e) {
 		  System.out.println("----- DATA BASE Exception -----");
