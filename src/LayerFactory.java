@@ -18,16 +18,17 @@ import com.luciad.view.lightspeed.layer.TLspPaintState;
 import com.luciad.view.lightspeed.layer.raster.TLspRasterLayerBuilder;
 import com.luciad.view.lightspeed.layer.shape.TLspShapeLayerBuilder;
 import com.luciad.view.lightspeed.layer.style.TLspLayerStyle;
+import com.luciad.view.lightspeed.painter.label.style.TLspDataObjectLabelTextProviderStyle;
 import com.luciad.view.lightspeed.style.ILspTexturedStyle;
 import com.luciad.view.lightspeed.style.ILspWorldElevationStyle;
 import com.luciad.view.lightspeed.style.TLsp3DIconStyle;
 import com.luciad.view.lightspeed.style.TLspFillStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle;
 import com.luciad.view.lightspeed.style.TLspLineStyle;
+import com.luciad.view.lightspeed.style.TLspTextStyle;
 import com.luciad.view.lightspeed.style.TLspVerticalLineStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle.ScalingMode;
 import com.luciad.view.lightspeed.style.styler.TLspStyler;
-
 
 public class LayerFactory extends ALspSingleLayerFactory {
 
@@ -36,12 +37,15 @@ public class LayerFactory extends ALspSingleLayerFactory {
   private String default_selection_fill_color = "#41f471";
   private String default_fill_color = "#4143f4";
   private String default_line_color = "#ffffff";
+  private String default_text_color = "#ffffff";
   
   private String selection_fill_color = default_selection_fill_color;
   private String fill_color = default_fill_color;
   private String line_color = default_line_color;
+  private String text_color = default_text_color;
   
   private String icon_path = "";
+  private String label_text = "";
   
   public String getIconPath() {
 	  return icon_path;
@@ -49,6 +53,14 @@ public class LayerFactory extends ALspSingleLayerFactory {
   
   public void setIconPath(String new_icon_path) {
 	  icon_path = new_icon_path;
+  }
+  
+  public String getLabelText() {
+	  return label_text;
+  }
+  
+  public void setLabelText(String new_label_text) {
+	  label_text = new_label_text;
   }
   
   public String getSelectionFillColor() {
@@ -75,10 +87,19 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	  line_color = new_color;
   }
   
+  public String getTextColor() {
+	  return text_color;
+  }
+  
+  public void setTextColor(String new_color) {
+	  text_color = new_color;
+  }
+  
   public void setDefautlsColor() {
 	  selection_fill_color = default_selection_fill_color;
 	  fill_color = default_fill_color;
 	  line_color = default_line_color;
+	  text_color = default_text_color;
   }
   
   public static Color hex2Rgb(String color_hex) {
@@ -106,7 +127,8 @@ public class LayerFactory extends ALspSingleLayerFactory {
            aModel.getModelDescriptor().getDisplayName().equals("Extruded stipple shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Solid fill shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes") ||
-           aModel.getModelDescriptor().getDisplayName().equals("Points with icon");
+           aModel.getModelDescriptor().getDisplayName().equals("Points with icon") ||
+           aModel.getModelDescriptor().getDisplayName().equals("Polyline");
   }
 
   @Override
@@ -127,6 +149,8 @@ public class LayerFactory extends ALspSingleLayerFactory {
       ILspLayer layer = createPointWithIconLayer(aModel);
       setIconPath("");
       return layer;
+    } else if (aModel.getModelDescriptor().getDisplayName().equals("Polyline")){
+    	return createPolylineLayer(aModel);
     }
     //return null;
     return createSimpleLayer(aModel);
@@ -240,7 +264,14 @@ public class LayerFactory extends ALspSingleLayerFactory {
                 .bodyEditable(true)
                 .bodyStyler(TLspPaintState.REGULAR, new TLspStyler(fillStyle,lineStyle))
                 .bodyStyler(TLspPaintState.SELECTED, new TLspStyler(selectedStyle, lineStyle))
-                .bodyStyler(TLspPaintState.EDITED, new TLspStyler(selectedStyle, lineStyle));
+                .bodyStyler(TLspPaintState.EDITED, new TLspStyler(selectedStyle, lineStyle))
+                .labelStyles(
+                		TLspPaintState.REGULAR, 
+                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+                		TLspDataObjectLabelTextProviderStyle.newBuilder()
+                            .expressions(PolygonDataTypes.NAME)
+                            .build()
+                );
     return layerBuilder.build();
                                 
   }
@@ -333,7 +364,13 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	                                lineBuilder.build()
 	                        )
 	                 )
-	                ;
+	                .labelStyles(
+	                		TLspPaintState.REGULAR, 
+	                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+	                		TLspDataObjectLabelTextProviderStyle.newBuilder()
+	                            .expressions(TrackDataTypes.NAME)
+	                            .build()
+	                );
 	    	 return layerBuilder.build();
 	    }
 	    else
@@ -355,6 +392,23 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	                .bodyStyler(TLspPaintState.EDITED, new TLspStyler(selectedStyle, lineStyle));
 	    	return layerBuilder.build();
 	    }                           
+	  }
+  
+  	private ILspLayer createPolylineLayer(ILcdModel aModel) {
+	    return TLspShapeLayerBuilder.newBuilder().model(aModel)
+                .selectable(true)
+                .bodyEditable(true)
+                .bodyStyles(TLspPaintState.REGULAR, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+                .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+                .labelStyles(
+                		TLspPaintState.REGULAR, 
+                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+                		TLspDataObjectLabelTextProviderStyle.newBuilder()
+                            .expressions(PolygonDataTypes.NAME)
+                            .build()
+                )
+                .build();
+	                                
 	  }
   
 }

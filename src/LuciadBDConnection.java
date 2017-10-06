@@ -21,6 +21,7 @@ public class LuciadBDConnection {
     private String url = "";
     private String user = "";
     private String password = "";
+    private String id_mision = "";
     private Connection connection = null;
 
     /**
@@ -44,7 +45,32 @@ public class LuciadBDConnection {
         this.url = String.format("jdbc:mysql://%s/%s", host, db_name);
         this.connection = getConnection();
     }
-
+    
+        /**
+     *
+     * @param host the host location (locahost:port)
+     * @param db_name the name of the database
+     * @param user the user that can make the conection
+     * @param password the password´s user
+     * @param id_mision
+     * @throws SQLException if the conection can´t be made or one of more
+     * arguments are wrong
+     * @throws java.lang.ClassNotFoundException
+     */
+    public LuciadBDConnection(
+            String host,
+            String db_name,
+            String user,
+            String password,
+            String id_mision) throws SQLException, ClassNotFoundException {
+        Class.forName("com.mysql.jdbc.Driver");
+        this.user = user;
+        this.password = password;
+        this.url = String.format("jdbc:mysql://%s/%s", host, db_name);
+        this.id_mision = id_mision;
+        this.connection = getConnection();
+    }
+    
     /**
      * Make the connection to the database
      *
@@ -159,8 +185,7 @@ public class LuciadBDConnection {
     public List<JSONObject> getTracks() throws SQLException {
         List<JSONObject> tracks_list = new ArrayList<>();
         JSONParser parser = new JSONParser();
-        Statement statement = connection.createStatement();
-        ResultSet queryresult = statement.executeQuery("SELECT "
+        PreparedStatement statement = connection.prepareStatement("SELECT "
                 + "ID,"
                 + "id_mision,"
                 + "id_usuario,"
@@ -174,7 +199,10 @@ public class LuciadBDConnection {
                 + "descripcion,"
                 + "datos_json,"
                 + "visibilidad"
-                + " FROM dato_tactico");
+                + " FROM dato_tactico "
+                + "WHERE id_mision = ?");
+        statement.setString(1, this.id_mision);
+        ResultSet queryresult = statement.executeQuery();
         while (queryresult.next()) {
             Map<String, Object> track = new HashMap<>();
             track.put("ID", (Object) queryresult.getInt("ID"));
@@ -229,8 +257,10 @@ public class LuciadBDConnection {
                 + "datos_json,"
                 + "visibilidad"
                 + " FROM dato_tactico "
-                + "WHERE ID = ?");
+                + "WHERE ID = ? AND "
+                + "id_mision = ?");
         statement.setInt(1, ID);
+        statement.setInt(2, Integer.parseInt(this.id_mision));
         ResultSet queryresult = statement.executeQuery();
         while (queryresult.next()) {
             Map<String, Object> track = new HashMap<>();
@@ -434,7 +464,7 @@ public class LuciadBDConnection {
     public int getTotalExtraPoints(JSONObject track) {
         JSONObject datos_json = (JSONObject) track.get("datos_json");
         JSONObject puntos_extras = (JSONObject) datos_json.get("puntos_extras");
-        return Integer.parseInt(puntos_extras.get("total").toString()) ;
+        return Integer.parseInt(puntos_extras.get("total").toString());
     }
 
     /**
@@ -448,7 +478,7 @@ public class LuciadBDConnection {
     public boolean setTotalExtraPoints(JSONObject track, int total) throws SQLException {
         JSONObject datos_json = (JSONObject) track.get("datos_json");
         JSONObject puntos_extras = (JSONObject) datos_json.get("puntos_extras");
-        puntos_extras.put("total",total);
+        puntos_extras.put("total", total);
         return updateTrack(track);
     }
 
@@ -481,22 +511,23 @@ public class LuciadBDConnection {
         JSONObject puntos_extras = (JSONObject) datos_json.get("puntos_extras");
         JSONArray puntos = (JSONArray) puntos_extras.get("puntos");
         JSONObject extra_point = new JSONObject();
-        extra_point.put("index", (int)getTotalExtraPoints(track));
+        extra_point.put("index", (int) getTotalExtraPoints(track));
         extra_point.put("longitud", Longitud);
         extra_point.put("latitud", Latitud);
         puntos.add(extra_point);
         setTotalExtraPoints(track, getTotalExtraPoints(track) + 1);
     }
-    
+
     /**
      * Insert a point in the track gived
      *
      * @param track
+     * @param index
      * @param Latitud
      * @param Longitud
      * @throws SQLException
      */
-    public void insertExtraPoint(JSONObject track,int index,float Latitud, float Longitud) throws SQLException {
+    public void insertExtraPoint(JSONObject track, int index, float Latitud, float Longitud) throws SQLException {
         JSONObject datos_json = (JSONObject) track.get("datos_json");
         JSONObject puntos_extras = (JSONObject) datos_json.get("puntos_extras");
         JSONArray puntos = (JSONArray) puntos_extras.get("puntos");
@@ -507,7 +538,7 @@ public class LuciadBDConnection {
         puntos.add(extra_point);
         setTotalExtraPoints(track, getTotalExtraPoints(track) + 1);
     }
-    
+
     /**
      * Insert an array of points in the track gived
      *
@@ -541,12 +572,12 @@ public class LuciadBDConnection {
         }
         return puntos;
     }
-    
-    public void cleanAllExtraPoints(JSONObject track){
+
+    public void cleanAllExtraPoints(JSONObject track) {
         JSONObject datos_json = (JSONObject) track.get("datos_json");
         JSONObject puntos_extras = (JSONObject) datos_json.get("puntos_extras");
         puntos_extras.put("puntos", new JSONArray());
-        puntos_extras.put("total",(int) 0);
+        puntos_extras.put("total", 0);
     }
 
     /**
@@ -558,5 +589,21 @@ public class LuciadBDConnection {
      */
     public void insertValuetoJSON(JSONObject datos_json, Object key, Object value) {
         datos_json.put(key, value);
-    }   
+    }
+
+    /**
+     * Obtiene el id de la mision actual
+     * @return el id de la mision actual
+     */
+    public String getId_mision() {
+        return id_mision;
+    }
+
+    /**
+     * Setea el id de la mision
+     * @param id_mision 
+     */
+    public void setId_mision(String id_mision) {
+        this.id_mision = id_mision;
+    }
 }
