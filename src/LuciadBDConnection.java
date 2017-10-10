@@ -200,7 +200,8 @@ public class LuciadBDConnection {
                 + "datos_json,"
                 + "visibilidad"
                 + " FROM dato_tactico "
-                + "WHERE id_mision = ?");
+                + "WHERE id_mision = ? AND "
+                + "eliminado = 0");
         statement.setString(1, this.id_mision);
         ResultSet queryresult = statement.executeQuery();
         while (queryresult.next()) {
@@ -258,7 +259,8 @@ public class LuciadBDConnection {
                 + "visibilidad"
                 + " FROM dato_tactico "
                 + "WHERE ID = ? AND "
-                + "id_mision = ?");
+                + "id_mision = ? AND "
+                + "eliminado = 0");
         statement.setInt(1, ID);
         statement.setInt(2, Integer.parseInt(this.id_mision));
         ResultSet queryresult = statement.executeQuery();
@@ -401,7 +403,7 @@ public class LuciadBDConnection {
      */
     public boolean deleteTrack(int ID) throws SQLException {
         PreparedStatement statement
-                = connection.prepareStatement("DELETE FROM dato_tactico WHERE ID = ?");
+                = connection.prepareStatement("UPDATE dato_tactico set eliminado WHERE ID = ?");
         statement.setInt(1, ID);
         int rows_deleted = statement.executeUpdate();
         statement.close();
