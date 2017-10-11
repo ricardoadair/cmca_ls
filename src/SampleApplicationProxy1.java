@@ -553,25 +553,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 //		 }
 	}
 	
-
-	
-	public void setVisibleLayer(boolean visible,String aSource)
-	{
-		/*ILspLayer layer = fTrackLayers.get(aLayerId);
-	    if (layer != null) {
-	    	layer.setVisible(visible);
-	    }*/
-	    
-	    for (int i=0;i<getView().layerCount();i++)
-	    {
-		   String act_label = getView().getLayer(i).getLabel();
-		   //System.out.println("\t" + getView().getLayer(i).getLabel());
-		   if (aSource.toLowerCase().contains(act_label.toLowerCase())) {
-			   getView().getLayer(i).setVisible(visible);
-		   }
-	    }
-	}
-	
 	public void zoom(double aFactor)
 	{
 		navigationUtil.zoom(aFactor);
@@ -842,6 +823,28 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       aE.printStackTrace();
     }
   }
+  
+  public void setVisibleLayer(int visible,String aSource)
+	{
+	/*ILspLayer layer = fTrackLayers.get(aLayerId);
+	    if (layer != null) {
+	    layer.setVisible(visible);
+	    }*/
+	   System.out.println("JAVAVIS: " + aSource + ": " + visible);
+	
+		boolean b_vis=false;
+		if (visible==1)
+			b_vis=true;
+	    
+	    for (int i=0;i<getView().layerCount();i++)
+	    {
+		   String act_label = getView().getLayer(i).getLabel();
+		   System.out.println("\t" + getView().getLayer(i).getLabel());
+		   if (aSource.toLowerCase().contains(act_label.toLowerCase())) {
+			   getView().getLayer(i).setVisible(b_vis);
+		   }
+	    }
+	}
 
   public void reSortLayer(int pos,String aSource) {
 	   System.out.println("JAVA: " + aSource + ": " + pos);
@@ -2040,9 +2043,16 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      
 	      
 	  }
-	  catch(Exception e) {
-		  System.out.println("----- DATA BASE Exception -----");
+	  /*catch(Exception e) {
 		  System.out.println(e.getMessage());
+	  }*/
+	  catch(SQLException q) {
+		  System.out.println("----- DATA BASE Exception -----");
+		  System.out.println(q.getMessage());
+	  }
+	  catch(Exception e) {
+		  System.out.println("----- Exception -----");
+		  System.out.println(e);
 	  }
   }
   
