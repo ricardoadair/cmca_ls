@@ -128,7 +128,8 @@ public class LayerFactory extends ALspSingleLayerFactory {
            aModel.getModelDescriptor().getDisplayName().equals("Solid fill shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Points with icon") ||
-           aModel.getModelDescriptor().getDisplayName().equals("Polyline");
+           aModel.getModelDescriptor().getDisplayName().equals("Polyline") ||
+           aModel.getModelDescriptor().getDisplayName().equals("Line");
   }
 
   @Override
@@ -151,6 +152,8 @@ public class LayerFactory extends ALspSingleLayerFactory {
       return layer;
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Polyline")){
     	return createPolylineLayer(aModel);
+    } else if (aModel.getModelDescriptor().getDisplayName().equals("Line")){
+    	return createLineLayer(aModel);
     }
     //return null;
     return createSimpleLayer(aModel);
@@ -405,6 +408,23 @@ public class LayerFactory extends ALspSingleLayerFactory {
                 		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
                 		TLspDataObjectLabelTextProviderStyle.newBuilder()
                             .expressions(PolygonDataTypes.NAME)
+                            .build()
+                )
+                .build();
+	                                
+	  }
+  	
+  	private ILspLayer createLineLayer(ILcdModel aModel) {
+	    return TLspShapeLayerBuilder.newBuilder().model(aModel)
+                .selectable(true)
+                .bodyEditable(true)
+                .bodyStyles(TLspPaintState.REGULAR, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+                .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+                .labelStyles(
+                		TLspPaintState.REGULAR, 
+                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+                		TLspDataObjectLabelTextProviderStyle.newBuilder()
+                            .expressions(LineDataTypes.LABEL)
                             .build()
                 )
                 .build();

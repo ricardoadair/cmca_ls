@@ -13,6 +13,8 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.Point;
 import java.awt.PopupMenu;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.IOException;
@@ -33,8 +35,10 @@ import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
+import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
@@ -76,10 +80,12 @@ import com.luciad.shape.shape2D.TLcdXYPolygon;
 import com.luciad.shape.shape3D.ILcd3DEditablePoint;
 import com.luciad.shape.shape3D.ILcd3DEditablePointList;
 import com.luciad.shape.shape3D.TLcd3DEditablePointList;
+import com.luciad.shape.shape3D.TLcdLonLatHeightLine;
 import com.luciad.shape.shape3D.TLcdLonLatHeightPoint;
 import com.luciad.shape.shape3D.TLcdLonLatHeightPolygon;
 import com.luciad.shape.shape3D.TLcdLonLatHeightPolyline;
 import com.luciad.shape.shape3D.TLcdLonLatHeightPolypoint;
+import com.luciad.shape.shape3D.TLcdXYZLine;
 import com.luciad.shape.shape3D.TLcdXYZPoint;
 import com.luciad.shape.shape3D.TLcdXYZPolygon;
 import com.luciad.shape.shape3D.TLcdXYZPolyline;
@@ -107,6 +113,7 @@ import com.luciad.view.lightspeed.camera.ALspViewXYZWorldTransformation;
 import com.luciad.view.lightspeed.camera.TLspViewXYZWorldTransformation2D;
 import com.luciad.view.lightspeed.camera.TLspViewXYZWorldTransformation3D;
 import com.luciad.view.lightspeed.controller.ILspController;
+import com.luciad.view.lightspeed.controller.ruler.TLspRulerController;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerController.MeasureMode;
 import com.luciad.view.lightspeed.layer.ILspLayer;
 import com.luciad.view.lightspeed.layer.TLspCompositeLayerFactory;
@@ -164,17 +171,23 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   //Distance
   JPanel distance_panel;
   JCheckBox terrainModeCheckbox;
+  //Menu
+  JPanel menu_panel;
+  JCheckBox distance_ac_Checkbox;
+  JCheckBox distance_flir_Checkbox;
+  JCheckBox distance_select_track_Checkbox;
   //String file_med = "Data/Dted/Alps/dmed";
   String file_med = "";
   private TerrainRulerController fTerrainRulerController = new TerrainRulerController(createNavigationController());
   ILspLayer dtedLayer = null;
   boolean load_file_med = false;
   private boolean distance_mode = false;
+  private boolean distance_mode_manual = false;
   private static final TLcdLonLatPoint FIRST_POINT = new TLcdLonLatPoint(10, 45);
   int track_layer_distance = 0;
   
   //Layers
-  int mission_ID = 1;//0;
+  int mission_ID = 0;
   private final Map<Integer, Map<String, Object >> fPolygonTrackLayers;
   LayerFactory layerFactory = new LayerFactory();
   int track_layer_points_tracks = 0;
@@ -183,18 +196,29 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   private boolean create_polygon_user_clicks = false;
   int polygon_user_clicks_track_id = -1;
   int rec_polygon_id = -1;
-  DecimalFormat df = new DecimalFormat("#.0000"); 
+  DecimalFormat df = new DecimalFormat("#.0000");
+  DecimalFormat df_line = new DecimalFormat("#.00"); 
+  //AC
   TLcdLonLatHeightPoint ac_point = null;
   int track_layer_ac_id = 0;
   int track_ac_id = -2;
-  String ac = "0,0"; 
+  int track_distance_ac_id = -4;
+  String ac = "0,0";
+  //FLIR
   TLcdLonLatHeightPoint flir_point = null;
   int track_layer_flir_id = 0;
   int track_flir_id = -3;
+  int track_distance_flir_id = -5;
   String flir = "0,0";
+  //SelectTrack
+  static boolean isSelectAnyElement = false;
+  static TLcdLonLatHeightPoint select_track_point = null;
+  int track_distance_select_track_id = -6;
+  
   
   //Icons Paths
-  String base_path = "/home/ricardoadair/CMCA/git/git_cmca/LVC_CMCA/";
+  String base_path = "";
+  //String base_path = "/home/ricardoadair/CMCA/git/git_cmca/LVC_CMCA/";
   String icon_folder_path = "data/Iconos/";
   String track_icon_name = "Track.png";
   String marca_icon_name = "Marca.png";
@@ -269,6 +293,11 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       overlay.add(distance_panel);
       layout.putConstraint(distance_panel, TLcdOverlayLayout.Location.NORTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
       
+      //Panel to distance
+      menu_panel = buildMenuPanel();
+      overlay.add(menu_panel);
+      layout.putConstraint(menu_panel, TLcdOverlayLayout.Location.NORTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
+      
       TLspBalloonManager mgr = new TLspBalloonManager(
           getView(),
           overlay,
@@ -303,6 +332,9 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       //addPolygon(prueba_opacity_layer_id, 9999, generate3DRandomPolygon(), "Polygono " + 9999, 0);
 	  /*prueba_opacity_layer_id = addTrackLayer("2", "EPSG:4326");
 	  addTrack(prueba_opacity_layer_id, 1434, -80, 15, 0, "Poligono Prueba opacity", 0);*/
+      
+      //prueba_opacity_layer_id = addTrackLayerLine("prueba line", "EPSG:4326");
+      //addLine(prueba_opacity_layer_id, 999, generateRandomPoint(), generateRandomPoint(), "Distance AC", 0);
       
     });
 
@@ -369,6 +401,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				  track_layer_draw_polygons = addTrackLayerPolygon("1", "EPSG:4326");
 				  addTrack(track_layer_draw_polygons, 115, 0, 0, 0, "os", 0);
 			  }
+			  if(distance_mode_manual) 
+			  {
+				  paintDistanceLines();
+			  }
 		  }
 	  }
 	};
@@ -413,21 +449,83 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	    return measureModePanel;
 	  }
 	
+	private JPanel buildMenuPanel() {
+	    
+	    distance_ac_Checkbox = new JCheckBox( "Distancia AC" );
+		distance_ac_Checkbox.setSelected(false);
+		distance_ac_Checkbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean distance_ac = e.getStateChange() == ItemEvent.SELECTED;
+	        if(distance_ac)
+	        {
+	        	distance_flir_Checkbox.setSelected(false);
+				distance_select_track_Checkbox.setSelected(false);
+	        }
+	        distanceTo();
+	      }
+	    });
+		distance_flir_Checkbox = new JCheckBox( "Distancia FLIR" );
+		distance_flir_Checkbox.setSelected(false);
+		distance_flir_Checkbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean distance_flir = e.getStateChange() == ItemEvent.SELECTED;
+	        if(distance_flir)
+	        {
+	        	distance_ac_Checkbox.setSelected(false);
+				distance_select_track_Checkbox.setSelected(false);
+	        }
+	        distanceTo();
+	      }
+	    });
+		distance_select_track_Checkbox = new JCheckBox( "Distancia Track seleccionado" );
+		distance_select_track_Checkbox.setSelected(false);
+		distance_select_track_Checkbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean distance_select_track = e.getStateChange() == ItemEvent.SELECTED;
+	        if(distance_select_track)
+	        {
+	        	if(isSelectAnyElement)
+	        	{
+	        		distance_ac_Checkbox.setSelected(false);
+	        		distance_flir_Checkbox.setSelected(false);
+	        	}
+	        	else
+	        	{
+	        		distance_select_track_Checkbox.setSelected(false);
+	        	}
+	        }
+	        distanceTo();
+	      }
+	    });
+	    
+	    //ButtonGroup measureModesGroup = new ButtonGroup();
+	    //measureModesGroup.add(distance_ac_button);
+	    //measureModesGroup.add(distance_flir_button);
+	    //measureModesGroup.add(distance_ac_Checkbox);
+	    //measureModesGroup.add(distance_flir_Checkbox);
+		//measureModesGroup.add(distance_select_track_Checkbox);
+
+	    JPanel menuPanel = new JPanel( new GridLayout( 3, 1 ) );
+	    menuPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+	    menuPanel.add(distance_ac_Checkbox);
+	    menuPanel.add(distance_flir_Checkbox);
+	    menuPanel.add(distance_select_track_Checkbox);
+	    return menuPanel;
+	  }
+	
 	public void centerMap(double lat, double lng) 
 	{
 		TLcdLonLatPoint mouse = new TLcdLonLatPoint(lat,lng);
 		try {
-			navigationUtil.center(mouse,new TLcdGeodeticReference());
+			//navigationUtil.center(mouse,new TLcdGeodeticReference());
+			navigationUtil.animatedCenter(mouse,new TLcdGeodeticReference());
 		} catch (TLcdOutOfBoundsException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-//		setVisibleLayer(track_layer_ac_id, visible_test);
-//		visible_test = !visible_test;
 		
 		//north();
 	}
-	//boolean visible_test = false;
 	
 	public void north() {
 //		TLcdLonLatPoint north = new TLcdLonLatPoint(90,0);
@@ -436,8 +534,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		 if (getView().getViewXYZWorldTransformation() instanceof TLspViewXYZWorldTransformation3D) {
 		      TLspViewXYZWorldTransformation3D aTargetSFCT = (TLspViewXYZWorldTransformation3D) getView().getViewXYZWorldTransformation();
 		      double clampedYaw = 0;
-		      // Modify the yaw
-		      aTargetSFCT.lookAt(aTargetSFCT.getReferencePoint(), aTargetSFCT.getDistance(), clampedYaw, aTargetSFCT.getPitch(), aTargetSFCT.getRoll());
+		      //aTargetSFCT.lookAt(aTargetSFCT.getReferencePoint(), aTargetSFCT.getDistance(), clampedYaw, aTargetSFCT.getPitch(), aTargetSFCT.getRoll());
+		      navigationUtil.rotateTo(aTargetSFCT.getReferencePoint(),clampedYaw, aTargetSFCT.getPitch());
 		 }
 //		 else if(getView().getViewXYZWorldTransformation() instanceof TLspViewXYZWorldTransformation2D) {
 //			TLspViewXYZWorldTransformation2D aTargetSFCT = (TLspViewXYZWorldTransformation2D) getView().getViewXYZWorldTransformation();
@@ -457,11 +555,20 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	
 
 	
-	public void setVisibleLayer(int aLayerId, boolean visible)
+	public void setVisibleLayer(boolean visible,String aSource)
 	{
-		ILspLayer layer = fTrackLayers.get(aLayerId);
+		/*ILspLayer layer = fTrackLayers.get(aLayerId);
 	    if (layer != null) {
 	    	layer.setVisible(visible);
+	    }*/
+	    
+	    for (int i=0;i<getView().layerCount();i++)
+	    {
+		   String act_label = getView().getLayer(i).getLabel();
+		   //System.out.println("\t" + getView().getLayer(i).getLabel());
+		   if (aSource.toLowerCase().contains(act_label.toLowerCase())) {
+			   getView().getLayer(i).setVisible(visible);
+		   }
 	    }
 	}
 	
@@ -729,9 +836,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	          .layer()
 	          .addToView(getView())
 	          .getLayer();
-    	  //Validate if is correct
-    	  int layerId = fAtomicInteger.incrementAndGet();
-          fTrackLayers.put(layerId, layer);
       	//fitOnLayers(getView().getOverlayComponent(), getView(), true, layer);
       }
     } catch (Exception aE) {
@@ -818,6 +922,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  return addTrackLayer(aLayerName, aEPSG, 4);
   }
   
+  public int addTrackLayerLine(String aLayerName, String aEPSG) {
+	  return addTrackLayer(aLayerName, aEPSG, 5);
+  }
+  
   public int addTrackLayer(String aLayerName, String aEPSG, int type_layer) {
     try {
     	ILcdModelReference reference = new TLcdEPSGReferenceParser().parseModelReference(aEPSG);
@@ -855,6 +963,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			Collection<ILspLayer> layers_polyline = factory.createLayers(model_polyline);
 			layer = layers_polyline.iterator().next();
 			break;
+		case 5:
+			factory = new TLspCompositeLayerFactory(layerFactory);
+			TLcdVectorModel model_line = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor(aLayerName, "Line", "Line"));
+			Collection<ILspLayer> layers_line = factory.createLayers(model_line);
+			layer = layers_line.iterator().next();
+			break;
 		default:
 			ILcdModel model = new TLcd2DBoundsIndexedModel(reference, new TLcdModelDescriptor(aLayerName, "Tracks", aLayerName));
 		    layer = TLspShapeLayerBuilder.newBuilder()
@@ -876,8 +990,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           // Call the native method to pass the selected object to the native application.
           objectSelected(getNativePeer(), aSelectionEvent.selectedElements().nextElement());
         }
+        else
+        {
+        	//System.out.println("nothing select");
+        	//select_track_point = null;
+        	//isSelectAnyElement = false;
+        }
       });
-
+      
       return layerId;
     } catch (ParseException e) {
       throw new IllegalStateException(e);
@@ -1049,6 +1169,130 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		  stopDistanceMode();
 	  }
   }
+    
+  public double rad(double x)
+  {
+      return x*Math.PI/180;
+  }
+  
+  boolean create_line_ac = false;
+  boolean create_line_flir = false;
+  boolean create_line_select_track = false;
+  
+  public void paintDistanceLines()
+  {
+	  if(track_layer_distance != 0 && fTrackLayers.size() > 0)
+	  {
+			ILspLayer layer = fTrackLayers.get(track_layer_distance);
+			if (layer != null && distance_mode_manual) 
+			{		  
+			  boolean ac = distance_ac_Checkbox.isSelected();
+			  boolean flir = distance_flir_Checkbox.isSelected();
+			  boolean select_track = distance_select_track_Checkbox.isSelected();
+			  ILcdPoint mouse_position = fMouseEventHandler.getMousePosition();
+			  
+			  System.out.println("ac:" + ac);
+			  System.out.println("flir:" + flir);
+			  System.out.println("select_track:" + select_track);
+			  
+			  if(ac) 
+			  {
+				if(create_line_ac == false) 
+				{
+					addLine(track_layer_distance, track_distance_ac_id, ac_point, mouse_position, "Distance AC", 0);
+					create_line_ac = true;
+				}
+				else  
+				{
+					updateLine(track_layer_distance, track_distance_ac_id, ac_point, mouse_position, 0);
+				}
+			  }
+			  else 
+			  {
+				  removeTrack(track_layer_distance, track_distance_ac_id);
+			  }
+			  
+			  if(flir) 
+			  {
+				if(create_line_flir == false) 
+				{
+					addLine(track_layer_distance, track_distance_flir_id, flir_point, mouse_position, "Distance FLIR", 0);
+					create_line_flir = true;
+				}
+				else  
+				{
+					updateLine(track_layer_distance, track_distance_flir_id, flir_point, mouse_position, 0);
+				}
+			  }
+			  else 
+			  {
+				  removeTrack(track_layer_distance, track_distance_flir_id);
+			  }
+			  
+			  if(select_track && isSelectAnyElement) 
+			  {
+				if(create_line_select_track == false) 
+				{
+					addLine(track_layer_distance, track_distance_select_track_id, select_track_point, mouse_position, "Distance Select Track", 0);
+					create_line_select_track = true;
+				}
+				else  
+				{
+					updateLine(track_layer_distance, track_distance_select_track_id, select_track_point, mouse_position, 0);
+				}
+			  }
+			  else 
+			  {
+				  removeTrack(track_layer_distance, track_distance_select_track_id);
+			  }
+	       }
+	  }
+  }
+  
+  public void distanceTo()
+  {
+	 
+	 boolean ac = distance_ac_Checkbox.isSelected();
+	 boolean flir = distance_flir_Checkbox.isSelected();
+	 boolean select_track = distance_select_track_Checkbox.isSelected();
+	 if(ac || flir || select_track)
+	 {
+		 if(track_layer_distance == 0)
+		 {
+			distance_mode_manual = true;
+			layerFactory.setTextColor("#ad2e2e");
+		 	track_layer_distance = addTrackLayerLine("Distance Manual", "EPSG:4326");
+		 	layerFactory.setDefautlsColor();
+		 }
+	 }
+	 else
+	 {
+		 distance_mode_manual = false;
+		 removeTrackLayer(track_layer_distance);
+		 track_layer_distance = 0;
+		 create_line_ac = false;
+		 create_line_flir = false;
+		 create_line_select_track = false;
+	 }
+
+  }
+  
+  public double getDistanceTwoPoints(ILcdPoint start_point, ILcdPoint end_point) {
+	 if(start_point != null && end_point != null)
+	 {
+		 double R = 6378.137; // earth's mean radius in km
+		 double dLat  = rad(end_point.getX() - start_point.getX());
+		 double dLong = rad(end_point.getY() - start_point.getY());
+		
+		 double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+		          Math.cos(rad(start_point.getX())) * Math.cos(rad(end_point.getX())) * Math.sin(dLong/2) * Math.sin(dLong/2);
+		 double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+		 double distance = R * c; //in km.
+		 return distance;
+		 //return distance * 1000; // in m.
+	 }
+	 return 0.0;
+  }
   
   public void startDistanceMode() {
 	System.out.println("startDistanceMode");
@@ -1083,6 +1327,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  if(load_file_med == false)
 	  {
 		  removeTrackLayer(track_layer_distance);
+		  track_layer_distance = 0;
 	  }
 	  getView().setController(defaul_controller);
   }
@@ -1128,8 +1373,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	          location = new TLcdLonLatHeightPolygon(polygon) {
 	            @Override
 	            public String toString() {
-	              //return getFormattedTrackLocation(this);
-	            	return "hi";
+					/*float x = data.containsKey("lat") ? (float)data.get("lat") : 0.0f;
+					float y = data.containsKey("lng") ? (float)data.get("lng") : 0.0f;
+					float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
+					TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
+					return getFormattedTrackLocation(polygon_point)*/
+					return getFormattedTrackLocation(this);
 	            }
 	          };
 	        } else {
@@ -1137,8 +1386,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	           location = new TLcdXYZPolygon(polygon) {
 	            @Override
 	            public String toString() {
-	              //return getFormattedTrackLocation(this);
-	              return "hi";
+	            	/*float x = data.containsKey("lat") ? (float)data.get("lat") : 0.0f;
+					float y = data.containsKey("lng") ? (float)data.get("lng") : 0.0f;
+					float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
+					TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
+					return getFormattedTrackLocation(polygon_point);*/
+					return getFormattedTrackLocation(this);
 	            }
 	          };
 	        }
@@ -1204,7 +1457,51 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      }
 	      model.fireCollectedModelChanges();
 	    }
-}
+  }
+  
+  public void addLine(int aLayerId, int aTrackId, ILcdPoint start_point, ILcdPoint end_point, String aCallSign, long aTimeStamp) {
+	    ILspLayer layer = fTrackLayers.get(aLayerId);
+	    ILcd3DEditablePoint p1 = (ILcd3DEditablePoint) start_point;
+	    ILcd3DEditablePoint p2 = (ILcd3DEditablePoint) end_point;
+	    if (layer != null) {
+	      ILcdModel model = layer.getModel();
+	      try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
+	        TLcdDataObject track = new TLcdDataObject(LineDataTypes.TRACK_PLAN_DATA_TYPE);
+	        ILcd3DEditablePointList location;
+	        if (model.getModelReference() instanceof ILcdGeodeticReference) {
+	          //location = new TLcdLonLatHeightPolygon(generate3DRandomPolygon()) {	
+	          location = new TLcdLonLatHeightLine(p1, p2) {
+	            @Override
+	            public String toString() {
+	              return getFormattedTrackLocation(p1);
+	            }
+	          };
+	        } else {
+	          //location = new TLcdXYZPolygon(generate3DRandomPolygon()) {
+	           location = new TLcdXYZLine(p1, p2) {
+	            @Override
+	            public String toString() {
+	              return getFormattedTrackLocation(p1);
+	            }
+	          };
+	        }
+	        String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " km.";
+	        track.setValue(LineDataTypes.ID, aTrackId);
+	        track.setValue(LineDataTypes.LOCATION, location);
+	        //track.setValue(PolygonDataTypes.TIMESTAMP, aTimeStamp);
+	        track.setValue(LineDataTypes.CALLSIGN, aCallSign);
+	        track.setValue(LineDataTypes.LABEL, distance_label);
+	        model.addElement(track, ILcdModel.FIRE_LATER);
+	        
+	      }
+	      catch(Exception e)
+	      {
+	    	  System.out.println("catch");
+	    	  System.out.println(e);
+	      }
+	      model.fireCollectedModelChanges();
+	    }
+  	}
 
   	protected String getFormattedTrackLocation(TLcdXYZPolypoint tLcdXYZPolypoint) {
 		// TODO Auto-generated method stub
@@ -1246,7 +1543,15 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     }
   }
   
-  public void updatePolygon(int aLayerId, int aTrackId, TLcd3DEditablePointList polygon, long aTimeStamp) {
+  public void updatePolygon(int aLayerId, int aTrackId, TLcd3DEditablePointList polygon, long aTimeStamp)
+  {
+	  Map<String,Object> data = new HashMap<>();
+	  data.put("name", "");
+      data.put("description", ""); 
+      updatePolygon(aLayerId, aTrackId, polygon, aTimeStamp, data);
+  }
+  
+  public void updatePolygon(int aLayerId, int aTrackId, TLcd3DEditablePointList polygon, long aTimeStamp, Map<String,Object> data) {
 	    ILspLayer layer = fTrackLayers.get(aLayerId);
 	    if (layer != null) {
 	      ILcdDataObject track = getTrack(aLayerId, aTrackId);
@@ -1260,14 +1565,24 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				  location = new TLcdLonLatHeightPolygon(polygon) {
 				    @Override
 				    public String toString() {
-				      return getFormattedTrackLocation(this);
+				    	/*float x = data.containsKey("lat") ? (float)data.get("lat") : 0.0f;
+						float y = data.containsKey("lng") ? (float)data.get("lng") : 0.0f;
+						float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
+						TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
+						return getFormattedTrackLocation(polygon_point);*/
+				    	return getFormattedTrackLocation(this);
 				    }
 				  };
 				} else {
 				   location = new TLcdXYZPolygon(polygon) {
 				    @Override
 				    public String toString() {
-				      return getFormattedTrackLocation(this);
+				    	/*float x = data.containsKey("lat") ? (float)data.get("lat") : 0.0f;
+						float y = data.containsKey("lng") ? (float)data.get("lng") : 0.0f;
+						float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
+						TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
+						return getFormattedTrackLocation(polygon_point);*/
+						return getFormattedTrackLocation(this);
 				    }
 				  };
 				}
@@ -1282,7 +1597,44 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	    }
 	  }
 
-  public void updatePoliline(int aLayerId, int aTrackId, TLcd3DEditablePointList polyline, long aTimeStamp) {
+  public void updateLine(int aLayerId, int aTrackId, ILcdPoint start_point, ILcdPoint end_point, long aTimeStamp){
+    ILspLayer layer = fTrackLayers.get(aLayerId);
+    ILcd3DEditablePoint p1 = (ILcd3DEditablePoint) start_point;
+    ILcd3DEditablePoint p2 = (ILcd3DEditablePoint) end_point;
+    if (layer != null) {
+      ILcdDataObject track = getTrack(aLayerId, aTrackId);
+      if (track != null) {
+        ILcdModel model = layer.getModel();
+        try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
+          //((ILcd3DEditablePoint) track.getValue(PolygonDataTypes.LOCATION)).move3D(aX, aY, aZ);
+        	//((ILcd3DEditablePointList) track.getValue(PolygonDataTypes.LOCATION)).getPointCount()
+			ILcd3DEditablePointList location;
+			if (model.getModelReference() instanceof ILcdGeodeticReference) {
+				location = new TLcdLonLatHeightLine(p1, p2) {
+			    @Override
+			    public String toString() {
+			      return getFormattedTrackLocation(p1);
+			    }
+			  };
+			} else {
+				location = new TLcdXYZLine(p1, p2) {
+			    @Override
+			    public String toString() {
+			      return getFormattedTrackLocation(p1);
+			    }
+			  };
+			}
+			String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " km.";
+			track.setValue(LineDataTypes.LOCATION, location);
+			track.setValue(LineDataTypes.LABEL, distance_label);
+			model.elementChanged(track, ILcdModel.FIRE_LATER);
+        }
+        model.fireCollectedModelChanges();
+      }
+    }
+  }
+  
+  public void updatePolyline(int aLayerId, int aTrackId, TLcd3DEditablePointList polyline, long aTimeStamp, Map<String,Object> data) {
 	    ILspLayer layer = fTrackLayers.get(aLayerId);
 	    if (layer != null) {
 	      ILcdDataObject track = getTrack(aLayerId, aTrackId);
@@ -1397,6 +1749,50 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	          t.setDataObject((ILcdDataObject) object);
 	          t.setDataModel(t.getDataModel());
 	          
+	          String type_element = ((ILcdDataObject) object).getDataType().getName();
+	          String var_id = "";
+	          String var_location = "";
+	          switch(type_element) 
+	          {
+	          	case "Track":
+	          		String track_name = TrackDataTypes.NAME;
+	          		if(!track_name.equals("AC") && !track_name.equals("FLIR")) {
+		          		var_location = TrackDataTypes.LOCATION;
+		          		var_id = TrackDataTypes.ID;
+	          		}
+	          		break;
+	          	case "Área":
+	          		//var_location = PolygonDataTypes.LOCATION;
+	          		//var_id = PolygonDataTypes.ID;
+	          		break;
+	          	case "Línea":
+	          		var_location = LineDataTypes.LOCATION;
+	          		var_id = LineDataTypes.ID;
+		        	break;
+		        default:
+		        	break;
+	          }
+	          select_track_point = null;
+	          isSelectAnyElement = false;
+	          if(!var_id.equals("") && !var_location.equals(""))
+	          {
+	        	  //"Lon: -94.720 Lat: 20.280 Height: 0.000"
+	        	  String location = ((ILcdDataObject) object).getValue(var_location).toString();
+	        	  //int id = Integer.parseInt(((ILcdDataObject) object).getValue(var_id).toString());
+	        	  
+	        	  String separate_caracter = ";";
+	        	  location = location.replaceAll("Lon: ", separate_caracter);
+	        	  location = location.replaceAll("Lat: ", separate_caracter);
+	        	  location = location.replaceAll("Height: ", separate_caracter);
+	        	  location = location.startsWith(separate_caracter) ? location.replaceFirst(separate_caracter, ""): location;
+	        	  String split_location[] = location.split(separate_caracter);
+	        	  float x = Float.parseFloat(split_location[0]);
+	        	  float y = Float.parseFloat(split_location[1]);
+	        	  float z = Float.parseFloat(split_location[2]);
+	        	  select_track_point = new TLcdLonLatHeightPoint(x,y,z);
+	        	  isSelectAnyElement = true;
+	          }
+
 	          JScrollPane scroll = new JScrollPane();
 	          scroll.setMinimumSize(new Dimension(150, 100));
 	          scroll.setMaximumSize(new Dimension(250, 100));
@@ -1409,6 +1805,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	          jp_ballon.add(new JLabel(""));
 	          jp_ballon.add(scroll);
 	          
+	          if(type_element.equals("Línea") )
+	          {
+	        	  return null;
+	          }
 	          return jp_ballon;
 	          
 	        }
@@ -1447,10 +1847,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      for(int t=0; t < tracks_list.size(); t++ )
 	      {
 	              float point_x = (float) tracks_list.get(t).get("x_geoposicion");
-	              float point_y = (float) tracks_list.get(t).get("y_geoposicion"); 
+	              float point_y = (float) tracks_list.get(t).get("y_geoposicion");
+	              float point_z = (float) tracks_list.get(t).get("elevacion"); 
 	              Map<String,Object> data = new HashMap<>();
 	              data.put("name", ((JSONObject)tracks_list.get(t)).get("nombre").toString());
-	              data.put("description", ((JSONObject)tracks_list.get(t)).get("descripcion").toString()); 
+	              data.put("description", ((JSONObject)tracks_list.get(t)).get("descripcion").toString());
+	              data.put("lat", point_x);
+	              data.put("lng", point_y);
+	              data.put("hgt", point_z);
 	
 	              int type = (int)tracks_list.get(t).get("tipo_dato");
 	              if(type == 1 || type == 2)
@@ -1565,7 +1969,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				        	      new_element.put("aLayerColor", color);
 				        	      addPolygonTrackLayers(id_track, new_element);
 			        	      }
-			        	      updatePolygon(polygon_layerId, id_track, track_points, 0);
+			        	      if( type == 5) {
+			        	    	  updatePolyline(polygon_layerId, id_track, track_points, 0, data);
+			        	      }
+			        	      else {
+			        	    	  updatePolygon(polygon_layerId, id_track, track_points, 0, data);
+			        	      }
 		                  }
 		                  all_tracks_ids_polygon_database.add(id_track);
 
@@ -1712,6 +2121,21 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		      //TLcdXYPolygon
 		    }
 	  }
+  }
+  
+  private ILcdPoint generateRandomPoint() {
+	  int min_lat = 95;
+	  int max_lat = 100;
+	  int min_lng = 18;
+	  int max_lng = 20;
+	  double lat = (Math.random()*(max_lat-min_lat+1)+min_lat)*(-1);
+	  double lng = Math.random()*(max_lng-min_lng+1)+min_lng;
+	  TLcdLonLatHeightPoint p = new TLcdLonLatHeightPoint(lng,lat,0);
+	  System.out.println(lat);
+	  System.out.println(lng);
+	  ILcdPoint point = p.getPoint(0);
+	  System.out.println(point);
+	  return point;  
   }
   
   private TLcd2DEditablePointList generateRandomPolygon() {

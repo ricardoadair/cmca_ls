@@ -133,7 +133,7 @@ public class LightspeedViewProxy {
   
   private void initDataBaseController() throws ClassNotFoundException, SQLException {
 	  conection = new LuciadBDConnection(DataBase_host, DataBase_name, DataBase_user, DataBase_pass);
-	  conection.setId_mision(String.valueOf(1));
+	  //conection.setId_mision(String.valueOf(1));
   }
 
   public long getNativePeer() {
