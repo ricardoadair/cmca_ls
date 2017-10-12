@@ -1,3 +1,6 @@
+import static com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke.compose;
+import static com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke.parallelLine;
+
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -19,15 +22,18 @@ import com.luciad.view.lightspeed.layer.raster.TLspRasterLayerBuilder;
 import com.luciad.view.lightspeed.layer.shape.TLspShapeLayerBuilder;
 import com.luciad.view.lightspeed.layer.style.TLspLayerStyle;
 import com.luciad.view.lightspeed.painter.label.style.TLspDataObjectLabelTextProviderStyle;
+import com.luciad.view.lightspeed.style.ALspStyle;
 import com.luciad.view.lightspeed.style.ILspTexturedStyle;
 import com.luciad.view.lightspeed.style.ILspWorldElevationStyle;
 import com.luciad.view.lightspeed.style.TLsp3DIconStyle;
+import com.luciad.view.lightspeed.style.TLspComplexStrokedLineStyle;
 import com.luciad.view.lightspeed.style.TLspFillStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle;
 import com.luciad.view.lightspeed.style.TLspLineStyle;
 import com.luciad.view.lightspeed.style.TLspTextStyle;
 import com.luciad.view.lightspeed.style.TLspVerticalLineStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle.ScalingMode;
+import com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke;
 import com.luciad.view.lightspeed.style.styler.TLspStyler;
 
 public class LayerFactory extends ALspSingleLayerFactory {
@@ -113,7 +119,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	  halo_color = default_halo_color;
   }
   
-  public static Color hex2Rgb(String color_hex) {
+  public Color hex2Rgb(String color_hex) {
 	    return new Color(
 	            Integer.valueOf( color_hex.substring( 1, 3 ), 16 ),
 	            Integer.valueOf( color_hex.substring( 3, 5 ), 16 ),
@@ -426,11 +432,20 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	  }
   	
   	private ILspLayer createLineLayer(ILcdModel aModel) {
+  		
+		ALspComplexStroke thickLine = parallelLine().lineWidth(1 * 4).lineColor(hex2Rgb(halo_color)).build();
+		ALspComplexStroke thinLine = parallelLine().lineWidth(1 * 2).lineColor(hex2Rgb(line_color)).build();
+		ALspComplexStroke baseLine = compose(thickLine, thinLine);
+  		ALspStyle style = TLspComplexStrokedLineStyle.newBuilder()
+                 .fallback(baseLine)
+                 .build();
 	    return TLspShapeLayerBuilder.newBuilder().model(aModel)
                 .selectable(true)
                 .bodyEditable(true)
-                .bodyStyles(TLspPaintState.REGULAR, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
-                .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+                .bodyStyles(TLspPaintState.REGULAR, style)
+                .bodyStyles(TLspPaintState.SELECTED, style)
+//                .bodyStyles(TLspPaintState.REGULAR, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+//                .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
                 .labelStyles(
                 		TLspPaintState.REGULAR, 
                 		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 

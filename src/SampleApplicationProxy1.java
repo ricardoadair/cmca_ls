@@ -117,11 +117,15 @@ import com.luciad.view.lightspeed.controller.ruler.TLspRulerController;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerController.MeasureMode;
 import com.luciad.view.lightspeed.layer.ILspLayer;
 import com.luciad.view.lightspeed.layer.TLspCompositeLayerFactory;
+import com.luciad.view.lightspeed.layer.TLspPaintState;
 import com.luciad.view.lightspeed.layer.shape.TLspShapeLayerBuilder;
 import com.luciad.view.lightspeed.layer.style.TLspLayerStyle;
 import com.luciad.view.lightspeed.painter.grid.TLspLonLatGridLayerBuilder;
+import com.luciad.view.lightspeed.painter.label.style.TLspDataObjectLabelTextProviderStyle;
 import com.luciad.view.lightspeed.services.effects.TLspAmbientLight;
 import com.luciad.view.lightspeed.services.effects.TLspHeadLight;
+import com.luciad.view.lightspeed.style.TLspLineStyle;
+import com.luciad.view.lightspeed.style.TLspTextStyle;
 import com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke.PolylineBuilder;
 import com.luciad.view.lightspeed.swing.TLspBalloonManager;
 import com.luciad.view.lightspeed.swing.TLspScaleIndicator;
@@ -411,14 +415,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	};
 	
 	private JPanel buildMeasureModePanel() {
-	    JRadioButton geodeticMeasureModeRadioButton = new JRadioButton( "Geodetic" );
+	    JRadioButton geodeticMeasureModeRadioButton = new JRadioButton( "Geodésica" );
 	    geodeticMeasureModeRadioButton.addItemListener(new ItemListener() {
 	      public void itemStateChanged(ItemEvent e) {
 	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_GEODETIC);
 	      }
 	    });
 
-	    JRadioButton rhumbLineMeasureModeRadioButton = new JRadioButton( "Constant azimuth" );
+	    JRadioButton rhumbLineMeasureModeRadioButton = new JRadioButton( "Acimut" );
 	    rhumbLineMeasureModeRadioButton.addItemListener(new ItemListener() {
 	      public void itemStateChanged(ItemEvent e) {
 	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_RHUMB);
@@ -426,7 +430,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	    });
 	    geodeticMeasureModeRadioButton.setSelected(true);
 
-	    terrainModeCheckbox = new JCheckBox( "Over terrain" );
+	    terrainModeCheckbox = new JCheckBox( "Sobre terreno" );
 	    terrainModeCheckbox.setSelected(false);
 	    terrainModeCheckbox.addItemListener(new ItemListener() {
 	      public void itemStateChanged(ItemEvent e) {
@@ -489,17 +493,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        boolean distance_select_track = e.getStateChange() == ItemEvent.SELECTED;
 	        if(distance_select_track)
 	        {
-	        	if(isSelectAnyElement)
-	        	{
-	        		distance_ac_Checkbox.setSelected(false);
-	        		distance_flir_Checkbox.setSelected(false);
-	        		distance_free_Checkbox.setSelected(false);
-	        		stopDistanceMode();
-	        	}
-	        	else
-	        	{
-	        		distance_select_track_Checkbox.setSelected(false);
-	        	}
+        		distance_ac_Checkbox.setSelected(false);
+        		distance_flir_Checkbox.setSelected(false);
+        		distance_free_Checkbox.setSelected(false);
+        		stopDistanceMode();
 	        }
 	        distanceTo();
 	      }
@@ -982,8 +979,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			{
 				ILcdModel model = new TLcd2DBoundsIndexedModel(reference, new TLcdModelDescriptor(aLayerName, "Alps", aLayerName));
 			    layer = TLspShapeLayerBuilder.newBuilder()
-			                                             .model(model)
-			                                             .build();
+                 .model(model)
+                 .build();
 			}
 			break;
 		case 4:
@@ -1289,8 +1286,9 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		 if(track_layer_distance == 0)
 		 {
 			distance_mode_manual = true;
-			layerFactory.setTextColor("#f4aa42");
-			layerFactory.setLineColor("#41f480");
+			layerFactory.setTextColor("#0036F5");
+			layerFactory.setLineColor("#2C4DC9");
+			layerFactory.setHaloColor("#ffffff");
 		 	track_layer_distance = addTrackLayerLine("Distance Manual", "EPSG:4326");
 		 	layerFactory.setDefautlsColor();
 		 }
@@ -1318,8 +1316,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		          Math.cos(rad(start_point.getX())) * Math.cos(rad(end_point.getX())) * Math.sin(dLong/2) * Math.sin(dLong/2);
 		 double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 		 double distance = R * c; //in km.
-		 return distance;
-		 //return distance * 1000; // in m.
+		 //return distance;
+		 return distance * 1000; // in m.
 	 }
 	 return 0.0;
   }
@@ -1518,7 +1516,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	            }
 	          };
 	        }
-	        String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " km.";
+	        String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " m.";
 	        track.setValue(LineDataTypes.ID, aTrackId);
 	        track.setValue(LineDataTypes.LOCATION, location);
 	        //track.setValue(PolygonDataTypes.TIMESTAMP, aTimeStamp);
@@ -1657,7 +1655,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			    }
 			  };
 			}
-			String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " km.";
+			String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " m.";
 			track.setValue(LineDataTypes.LOCATION, location);
 			track.setValue(LineDataTypes.LABEL, distance_label);
 			model.elementChanged(track, ILcdModel.FIRE_LATER);
