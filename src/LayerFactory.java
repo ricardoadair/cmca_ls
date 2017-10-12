@@ -38,11 +38,13 @@ public class LayerFactory extends ALspSingleLayerFactory {
   private String default_fill_color = "#4143f4";
   private String default_line_color = "#ffffff";
   private String default_text_color = "#ffffff";
+  private String default_halo_color = "#000000";
   
   private String selection_fill_color = default_selection_fill_color;
   private String fill_color = default_fill_color;
   private String line_color = default_line_color;
   private String text_color = default_text_color;
+  private String halo_color = default_halo_color;
   
   private String icon_path = "";
   private String label_text = "";
@@ -95,11 +97,20 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	  text_color = new_color;
   }
   
+  public String getHaloColor() {
+	  return halo_color;
+  }
+  
+  public void setHaloColor(String new_color) {
+	  halo_color = new_color;
+  }
+  
   public void setDefautlsColor() {
 	  selection_fill_color = default_selection_fill_color;
 	  fill_color = default_fill_color;
 	  line_color = default_line_color;
 	  text_color = default_text_color;
+	  halo_color = default_halo_color;
   }
   
   public static Color hex2Rgb(String color_hex) {
@@ -270,7 +281,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
                 .bodyStyler(TLspPaintState.EDITED, new TLspStyler(selectedStyle, lineStyle))
                 .labelStyles(
                 		TLspPaintState.REGULAR, 
-                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
                 		TLspDataObjectLabelTextProviderStyle.newBuilder()
                             .expressions(PolygonDataTypes.NAME)
                             .build()
@@ -369,7 +380,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	                 )
 	                .labelStyles(
 	                		TLspPaintState.REGULAR, 
-	                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+	                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
 	                		TLspDataObjectLabelTextProviderStyle.newBuilder()
 	                            .expressions(TrackDataTypes.NAME)
 	                            .build()
@@ -405,7 +416,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
                 .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
                 .labelStyles(
                 		TLspPaintState.REGULAR, 
-                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
                 		TLspDataObjectLabelTextProviderStyle.newBuilder()
                             .expressions(PolygonDataTypes.NAME)
                             .build()
@@ -422,7 +433,14 @@ public class LayerFactory extends ALspSingleLayerFactory {
                 .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
                 .labelStyles(
                 		TLspPaintState.REGULAR, 
-                		TLspTextStyle.newBuilder().textColor(hex2Rgb(text_color)).build(), 
+                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
+                		TLspDataObjectLabelTextProviderStyle.newBuilder()
+                            .expressions(LineDataTypes.LABEL)
+                            .build()
+                )
+                .labelStyles(
+                		TLspPaintState.SELECTED, 
+                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
                 		TLspDataObjectLabelTextProviderStyle.newBuilder()
                             .expressions(LineDataTypes.LABEL)
                             .build()

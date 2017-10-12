@@ -176,6 +176,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   JCheckBox distance_ac_Checkbox;
   JCheckBox distance_flir_Checkbox;
   JCheckBox distance_select_track_Checkbox;
+  JCheckBox distance_free_Checkbox;
   //String file_med = "Data/Dted/Alps/dmed";
   String file_med = "";
   private TerrainRulerController fTerrainRulerController = new TerrainRulerController(createNavigationController());
@@ -460,6 +461,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        {
 	        	distance_flir_Checkbox.setSelected(false);
 				distance_select_track_Checkbox.setSelected(false);
+				distance_free_Checkbox.setSelected(false);
+				stopDistanceMode();
 	        }
 	        distanceTo();
 	      }
@@ -473,6 +476,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        {
 	        	distance_ac_Checkbox.setSelected(false);
 				distance_select_track_Checkbox.setSelected(false);
+				distance_free_Checkbox.setSelected(false);
+				stopDistanceMode();
 	        }
 	        distanceTo();
 	      }
@@ -488,6 +493,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        	{
 	        		distance_ac_Checkbox.setSelected(false);
 	        		distance_flir_Checkbox.setSelected(false);
+	        		distance_free_Checkbox.setSelected(false);
+	        		stopDistanceMode();
 	        	}
 	        	else
 	        	{
@@ -495,6 +502,24 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        	}
 	        }
 	        distanceTo();
+	      }
+	    });
+		
+		distance_free_Checkbox = new JCheckBox( "Distancia libre" );
+		distance_free_Checkbox.setSelected(false);
+		distance_free_Checkbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean free_select_track = e.getStateChange() == ItemEvent.SELECTED;
+	        if(free_select_track)
+	        {
+	        	distance_ac_Checkbox.setSelected(false);
+        		distance_flir_Checkbox.setSelected(false);
+        		distance_select_track_Checkbox.setSelected(false);
+        		startDistanceMode();
+	        }
+	        else {
+	        	stopDistanceMode();
+	        }
 	      }
 	    });
 	    
@@ -505,11 +530,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	    //measureModesGroup.add(distance_flir_Checkbox);
 		//measureModesGroup.add(distance_select_track_Checkbox);
 
-	    JPanel menuPanel = new JPanel( new GridLayout( 3, 1 ) );
+	    JPanel menuPanel = new JPanel( new GridLayout( 4, 1 ) );
 	    menuPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
 	    menuPanel.add(distance_ac_Checkbox);
 	    menuPanel.add(distance_flir_Checkbox);
 	    menuPanel.add(distance_select_track_Checkbox);
+	    menuPanel.add(distance_free_Checkbox);
 	    return menuPanel;
 	  }
 	
@@ -1263,7 +1289,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		 if(track_layer_distance == 0)
 		 {
 			distance_mode_manual = true;
-			layerFactory.setTextColor("#ad2e2e");
+			layerFactory.setTextColor("#f4aa42");
+			layerFactory.setLineColor("#41f480");
 		 	track_layer_distance = addTrackLayerLine("Distance Manual", "EPSG:4326");
 		 	layerFactory.setDefautlsColor();
 		 }
@@ -1323,16 +1350,19 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   ILspController defaul_controller;
   
   public void stopDistanceMode() {
-	  System.out.println("stopDistanceMode");
-	  distance_panel.setVisible(false);
-	  distance_mode = false;
-	  
-	  if(load_file_med == false)
+	  if(distance_mode)
 	  {
-		  removeTrackLayer(track_layer_distance);
-		  track_layer_distance = 0;
+		  System.out.println("stopDistanceMode");
+		  distance_panel.setVisible(false);
+		  distance_mode = false;
+		  
+		  if(load_file_med == false)
+		  {
+			  removeTrackLayer(track_layer_distance);
+			  track_layer_distance = 0;
+		  }
+		  getView().setController(defaul_controller);
 	  }
-	  getView().setController(defaul_controller);
   }
   
   private TLcdHeightProviderAdapter createAltitudeProvider(ILcdModel aModel) {
