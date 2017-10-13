@@ -1,3 +1,7 @@
+import static com.luciad.view.lightspeed.label.algorithm.TLspLabelLocationProvider.Location.SOUTH;
+import static com.luciad.view.lightspeed.label.algorithm.TLspLabelLocationProvider.Location.WEST;
+import static com.luciad.view.lightspeed.label.algorithm.TLspLabelLocationProvider.Location.EAST;
+import static com.luciad.view.lightspeed.label.algorithm.TLspLabelLocationProvider.Location.NORTH;
 import static com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke.compose;
 import static com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke.parallelLine;
 
@@ -15,6 +19,10 @@ import com.luciad.gui.TLcdImageIcon;
 import com.luciad.model.ILcdModel;
 import com.luciad.util.logging.ILcdLogger;
 import com.luciad.util.logging.TLcdLoggerFactory;
+import com.luciad.view.lightspeed.label.TLspLabelPlacer;
+import com.luciad.view.lightspeed.label.algorithm.ILspLabelingAlgorithm;
+import com.luciad.view.lightspeed.label.algorithm.TLspLabelLocationProvider;
+import com.luciad.view.lightspeed.label.algorithm.discrete.TLspLabelingAlgorithm;
 import com.luciad.view.lightspeed.layer.ALspSingleLayerFactory;
 import com.luciad.view.lightspeed.layer.ILspLayer;
 import com.luciad.view.lightspeed.layer.TLspPaintState;
@@ -30,10 +38,12 @@ import com.luciad.view.lightspeed.style.TLspComplexStrokedLineStyle;
 import com.luciad.view.lightspeed.style.TLspFillStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle;
 import com.luciad.view.lightspeed.style.TLspLineStyle;
+import com.luciad.view.lightspeed.style.TLspPinLineStyle;
 import com.luciad.view.lightspeed.style.TLspTextStyle;
 import com.luciad.view.lightspeed.style.TLspVerticalLineStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle.ScalingMode;
 import com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke;
+import com.luciad.view.lightspeed.style.styler.TLspLabelStyler;
 import com.luciad.view.lightspeed.style.styler.TLspStyler;
 
 public class LayerFactory extends ALspSingleLayerFactory {
@@ -439,26 +449,25 @@ public class LayerFactory extends ALspSingleLayerFactory {
   		ALspStyle style = TLspComplexStrokedLineStyle.newBuilder()
                  .fallback(baseLine)
                  .build();
+  		ILspLabelingAlgorithm labelingAlgorithm = new TLspLabelingAlgorithm(new TLspLabelLocationProvider(SOUTH));
+  		TLspLabelStyler fLabelStyler = TLspLabelStyler.newBuilder()
+                .group(TLspLabelPlacer.DEFAULT_DECLUTTER_GROUP)
+                .algorithm(labelingAlgorithm)
+                .styles(TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), style, TLspDataObjectLabelTextProviderStyle.newBuilder()
+                        .expressions(LineDataTypes.LABEL)
+                        .build())
+                .build();
+  		
 	    return TLspShapeLayerBuilder.newBuilder().model(aModel)
-                .selectable(true)
-                .bodyEditable(true)
+                .selectable(false)
+                .bodyEditable(false)
                 .bodyStyles(TLspPaintState.REGULAR, style)
                 .bodyStyles(TLspPaintState.SELECTED, style)
 //                .bodyStyles(TLspPaintState.REGULAR, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
 //                .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
-                .labelStyles(
+                .labelStyler(
                 		TLspPaintState.REGULAR, 
-                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
-                		TLspDataObjectLabelTextProviderStyle.newBuilder()
-                            .expressions(LineDataTypes.LABEL)
-                            .build()
-                )
-                .labelStyles(
-                		TLspPaintState.SELECTED, 
-                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
-                		TLspDataObjectLabelTextProviderStyle.newBuilder()
-                            .expressions(LineDataTypes.LABEL)
-                            .build()
+                		fLabelStyler
                 )
                 .build();
 	                                
