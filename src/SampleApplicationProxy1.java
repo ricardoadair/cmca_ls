@@ -11,14 +11,19 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.GridLayout;
+import java.awt.Label;
 import java.awt.Point;
 import java.awt.PopupMenu;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -35,6 +40,7 @@ import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
@@ -138,6 +144,8 @@ import com.luciad.view.lightspeed.util.TLspViewNavigationUtil;
 import com.luciad.view.swing.ALcdBalloonDescriptor;
 import com.luciad.view.swing.ILcdBalloonContentProvider;
 import com.luciad.view.swing.TLcdModelElementBalloonDescriptor;
+
+import org.apache.batik.util.gui.LanguageDialog.Panel;
 import org.jdesktop.swingx.VerticalLayout;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -174,6 +182,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   private TLspScaleIndicator scaleIndicator;
   TLspViewNavigationUtil navigationUtil;
   public JLabel coords;
+  ScheduledExecutorService timer;
+  ScheduledExecutorService timer_delete;
   
   //Distance
   JPanel distance_panel;
@@ -233,6 +243,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   String marca_icon_name = "Marca.png";
   String ac_icon_name = "AC.png";
   String flir_icon_name = "Pos_Camera.png";
+  boolean update_styles = false;
   String track_icon_path = "";
   String marck_icon_path = "";
   String ac_icon_path = "";
@@ -350,10 +361,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     getView().addLayer(TLspLonLatGridLayerBuilder.newBuilder().build());
     navigationUtil = new TLspViewNavigationUtil(getView());
     
-    ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
+    timer = Executors.newSingleThreadScheduledExecutor();
+    timer_delete = Executors.newSingleThreadScheduledExecutor();
 	timer.scheduleAtFixedRate(update_points, 1, 1, TimeUnit.SECONDS);
     
 	timer.scheduleAtFixedRate(update, 200, 200, TimeUnit.MILLISECONDS);
+	
+	//timer.scheduleAtFixedRate(deleteExtraIconFiles, 1, 5, TimeUnit.SECONDS);
+	
 	
 	//timer.scheduleAtFixedRate(update_all_layers_opacity, 10, 5, TimeUnit.SECONDS);
   }
@@ -414,6 +429,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				  paintDistanceLines();
 			  }
 		  }
+	  }
+	};
+	
+	final Runnable deleteExtraIconFiles= new Runnable() {
+	  public void run() {
+		  delete_files();
 	  }
 	};
 	
@@ -681,51 +702,152 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		);
 	}
 	
-	public void updateAllIconStyles() 
+	public void updateAllIconStyles()
 	{
+		update_styles = true;
+		update_icons_path();
 		System.out.println("updateAllIconStyles");
 		updateTracksIconStyle();
 		updateMarcksIconStyle();
 		updateAcIconStyle();
 		updateFlirIconStyle();
+		update_styles = false;
+		
+		timer_delete.schedule(deleteExtraIconFiles, 2, TimeUnit.SECONDS);
+		//timer_delete.scheduleAtFixedRate(deleteExtraIconFiles, 5, 5, TimeUnit.SECONDS);
+
+	}
+	
+	public void FileCopy(String sourceFile, String destinationFile) {
+		//System.out.println("Desde: " + sourceFile);
+		//System.out.println("Hacia: " + destinationFile);
+
+		try {
+			File inFile = new File(sourceFile);
+			File outFile = new File(destinationFile);
+
+			FileInputStream in = new FileInputStream(inFile);
+			FileOutputStream out = new FileOutputStream(outFile);
+
+			int c;
+			while( (c = in.read() ) != -1)
+				out.write(c);
+
+			in.close();
+			out.close();
+		} catch(IOException e) {
+			System.err.println(e);
+		}
+	}
+	
+	/*JPanel panel_icon = new JPanel();
+	 Container overlay = getView().getOverlayComponent();
+	 TLcdOverlayLayout layout = (TLcdOverlayLayout) overlay.getLayout();
+	 JLabel img = new JLabel(" "); 
+	 ImageIcon image = new ImageIcon(track_icon_path);
+	 panel_icon.add(img);
+	 img.setIcon(image); 
+	 img.setSize(100,100); 
+	 img.setLocation(0,0); 
+	 img.setVisible(true); 
+	 overlay.add(panel_icon);
+	 layout.putConstraint(panel_icon, TLcdOverlayLayout.Location.WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);*/
+	//addTrack(track_layer_points_tracks, 98243, -100, 22, 10, "ada", 0);
+	
+	List<String> files_to_delete = new ArrayList<String>();
+	public void delete_files() {
+		if(files_to_delete.size() > 0)
+		{
+			for (String file : files_to_delete) {
+				File fichero = new File(file);
+			    fichero.delete();
+			}
+			files_to_delete.clear();
+		}
 	}
 	
 	public void updateTracksIconStyle() 
 	{
 		//Tracks
-		removeTrackLayer(track_layer_points_tracks);
-		System.out.println("updateTracksIconStyle "+track_icon_path);
-		layerFactory.setIconPath(track_icon_path);
-		track_layer_points_tracks = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
+		int id_layer = track_layer_points_tracks;
+		String icon_path = track_icon_path;
 		
+		removeTrackLayer(id_layer);
+		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
+		System.out.println("updateTracksIconStyle " + new_icon_path);
+		FileCopy(icon_path, new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
+		files_to_delete.add(new_icon_path);
+		
+		track_layer_points_tracks = id_layer;
 	}
 	
 	public void updateMarcksIconStyle() 
 	{
 		//Marks
-		removeTrackLayer(track_layer_points_marks);
+		/*removeTrackLayer(track_layer_points_marks);
 		System.out.println("updateMarcksIconStyle "+marck_icon_path);
 		layerFactory.setIconPath(marck_icon_path);
-		track_layer_points_marks = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
+		track_layer_points_marks = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");*/
+		
+		int id_layer = track_layer_points_marks;
+		String icon_path = marck_icon_path;
+		
+		removeTrackLayer(id_layer);
+		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
+		System.out.println("updateMarcksIconStyle " + new_icon_path);
+		FileCopy(icon_path, new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
+		files_to_delete.add(new_icon_path);
+		
+		track_layer_points_marks = id_layer;
 	}
 	
 	public void updateAcIconStyle() 
 	{
 		//AC
-		removeTrackLayer(track_layer_ac_id);
+		/*removeTrackLayer(track_layer_ac_id);
 		System.out.println("updateAcIconStyle "+ac_icon_path);
 		layerFactory.setIconPath(ac_icon_path);
-		track_layer_ac_id = addTrackLayerPointWithIcon("AC layer", "EPSG:4326");
+		track_layer_ac_id = addTrackLayerPointWithIcon("AC layer", "EPSG:4326");*/
+		
+		int id_layer = track_layer_ac_id;
+		String icon_path = ac_icon_path;
+		
+		removeTrackLayer(id_layer);
+		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
+		System.out.println("updateAcIconStyle " + new_icon_path);
+		FileCopy(icon_path, new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("AC layer", "EPSG:4326");
+		files_to_delete.add(new_icon_path);
+		
+		track_layer_ac_id = id_layer;
 				
 	}
 	
 	public void updateFlirIconStyle() 
 	{
 		//FLIR
-		removeTrackLayer(track_layer_flir_id);
+		/*removeTrackLayer(track_layer_flir_id);
 		System.out.println("updateFlirIconStyle "+flir_icon_path);
 		layerFactory.setIconPath(flir_icon_path);
-		track_layer_flir_id = addTrackLayerPointWithIcon("Flir layer", "EPSG:4326");
+		track_layer_flir_id = addTrackLayerPointWithIcon("Flir layer", "EPSG:4326");*/
+		
+		int id_layer = track_layer_flir_id;
+		String icon_path = flir_icon_path;
+		
+		removeTrackLayer(id_layer);
+		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
+		System.out.println("updateFlirIconStyle " + new_icon_path);
+		FileCopy(icon_path, new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("Flir layer", "EPSG:4326");
+		files_to_delete.add(new_icon_path);
+		
+		track_layer_flir_id = id_layer;
 		
 	}
 	
@@ -738,7 +860,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			double y = Double.parseDouble(split[1]);
 			double z = split.length > 2 ? Double.parseDouble(split[2]) *1000 : 0.0; //m.
 			ac_point = new TLcdLonLatHeightPoint(x,y,z);
-			System.out.println(ac_point);
+			//System.out.println(ac_point);
 		}
 	}
 	
@@ -751,7 +873,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			double y = Double.parseDouble(split[1]);
 			double z = split.length > 2 ? Double.parseDouble(split[2]) *1000 : 0.0; //m.
 			flir_point = new TLcdLonLatHeightPoint(x,y,z);
-			System.out.println(flir_point);
+			//System.out.println(flir_point);
 		}
 	}
 	
@@ -767,14 +889,17 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	
 	public void update_map()
 	{
-	  if(track_layer_points_tracks == 0 && track_layer_points_marks == 0) 
-	  {
-		  create_points();
-	  }
-	  else
-	  {
-		  update_points();
-	  }
+		if( update_styles == false)
+		{
+			  if(track_layer_points_tracks == 0 && track_layer_points_marks == 0) 
+			  {
+				  create_points();
+			  }
+			  else
+			  {
+				  update_points();
+			  }
+		}
 	}
 		
 	public void create_points() {
@@ -864,10 +989,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   
   public void setVisibleLayer(int visible,String aSource)
 	{
-	/*ILspLayer layer = fTrackLayers.get(aLayerId);
-	    if (layer != null) {
-	    layer.setVisible(visible);
-	    }*/
 	   System.out.println("JAVAVIS: " + aSource + ": " + visible);
 	
 		boolean b_vis=false;
@@ -877,8 +998,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	    for (int i=0;i<getView().layerCount();i++)
 	    {
 		   String act_label = getView().getLayer(i).getLabel();
-		   System.out.println("\t" + getView().getLayer(i).getLabel());
-		   if (aSource.toLowerCase().contains(act_label.toLowerCase())) {
+		   if (aSource.toLowerCase().replace("_", " ").contains(act_label.toLowerCase())) {
 			   getView().getLayer(i).setVisible(b_vis);
 		   }
 	    }
@@ -891,7 +1011,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	   {
 		   String act_label = getView().getLayer(i).getLabel();
 		   //System.out.println("\t" + getView().getLayer(i).getLabel());
-		   if (aSource.toLowerCase().contains(act_label.toLowerCase())) {
+		   if (aSource.toLowerCase().replace("_", " ").contains(act_label.toLowerCase())) {
 			   System.out.println("*");
 			   getView().moveLayerAt(pos, getView().getLayer(i));
 		   }
