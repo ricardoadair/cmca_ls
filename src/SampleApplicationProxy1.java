@@ -215,6 +215,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   private boolean create_polygon_user_clicks = false;
   int polygon_user_clicks_track_id = -1;
   int rec_polygon_id = -1;
+  static boolean draw_polygon_mode = false;
   DecimalFormat df = new DecimalFormat("#.0000");
   DecimalFormat df_line = new DecimalFormat("#.00"); 
   //AC
@@ -422,7 +423,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				  draw_polygon_user_clicks();
 			  }
 			  else {
-				  track_layer_draw_polygons = addTrackLayerPolygon("1", "EPSG:4326");
+				  track_layer_draw_polygons = addTrackLayerNoSelectionPolygon("1", "EPSG:4326");
 			  }
 			  if(distance_mode_manual) 
 			  {
@@ -713,7 +714,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		updateFlirIconStyle();
 		update_styles = false;
 		
-		timer_delete.schedule(deleteExtraIconFiles, 2, TimeUnit.SECONDS);
+		timer_delete.schedule(deleteExtraIconFiles, 3, TimeUnit.SECONDS);
 		//timer_delete.scheduleAtFixedRate(deleteExtraIconFiles, 5, 5, TimeUnit.SECONDS);
 
 	}
@@ -1071,6 +1072,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  System.out.println("JAVA Start: " + ID);
 	  rec_polygon_id = ID;
 	  fMouseEventHandler.setDrawPolygonMode(true);
+	  draw_polygon_mode = true;
 	  return;
   }
   
@@ -1082,7 +1084,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   public void stopRec(int ID) {
 	  System.out.println("JAVA Stop: " + ID);
 	  fMouseEventHandler.setDrawPolygonMode(false);
-	  
+	  draw_polygon_mode = false;
 	  JSONObject track;
 		try {
 			track = conection.getTrackbyID(ID);
@@ -1312,6 +1314,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  return addTrackLayer(aLayerName, aEPSG, 2);
   }
   
+  public int addTrackLayerNoSelectionPolygon(String aLayerName, String aEPSG) {
+	  return addTrackLayer(aLayerName, aEPSG, 6);
+  }
+  
   public int addTrackLayerDistance(String aLayerName, String aEPSG) {
 	  return addTrackLayer(aLayerName, aEPSG, 3);
   }
@@ -1367,6 +1373,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			Collection<ILspLayer> layers_line = factory.createLayers(model_line);
 			layer = layers_line.iterator().next();
 			break;
+		case 6:
+			factory = new TLspCompositeLayerFactory(layerFactory);
+			TLcdVectorModel model_no_select_polygon = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor(aLayerName, "SolidShapes", "Solid fill shapes no select"));
+			Collection<ILspLayer> layers_no_select_polygon = factory.createLayers(model_no_select_polygon);
+			layer = layers_no_select_polygon.iterator().next();
+			break;	
 		default:
 			ILcdModel model = new TLcd2DBoundsIndexedModel(reference, new TLcdModelDescriptor(aLayerName, "Tracks", aLayerName));
 		    layer = TLspShapeLayerBuilder.newBuilder()
@@ -1386,7 +1398,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       layer.addSelectionListener((ILcdSelectionListener) aSelectionEvent -> {
         if (aSelectionEvent.getSelection().getSelectionCount() == 1) {
           // Call the native method to pass the selected object to the native application.
-          objectSelected(getNativePeer(), aSelectionEvent.selectedElements().nextElement());
+        	objectSelected(getNativePeer(), aSelectionEvent.selectedElements().nextElement());
         }
         else
         {
@@ -1984,7 +1996,11 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 
 	  @Override
 	    public boolean canGetContent(final ALcdBalloonDescriptor aBalloonDescriptor) {
-	      return true;
+		  if(draw_polygon_mode == false)
+	      {
+			  return true;
+	      }
+		  return false;
 	    }
 
 	    @Override
@@ -2368,6 +2384,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		    if (layer != null) {
 		      ILcdModel model = layer.getModel();
 		      TLcd3DEditablePointList clicks_points = fMouseEventHandler.getPaintPoints();
+		      ILcdPoint mouse_position = fMouseEventHandler.getMousePosition();
 		      if(clicks_points.getPointCount() > 0)
 		      {
 				if(create_polygon_user_clicks == false) {
@@ -2376,7 +2393,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				}
 				else  
 				{
-					updatePolygon(track_layer_draw_polygons, polygon_user_clicks_track_id, clicks_points, 0);
+					//updatePolygon(track_layer_draw_polygons, polygon_user_clicks_track_id, clicks_points, 0);
+					TLcd3DEditablePointList polygon_preview = new TLcd3DEditablePointList();
+					for(int i=0;i<clicks_points.getPointCount();i++) {
+						ILcdPoint p = clicks_points.getPoint(i);
+						polygon_preview.insert3DPoint(i, new TLcdXYZPoint(p.getX(),p.getY(),0));
+					}
+					polygon_preview.insert3DPoint(clicks_points.getPointCount(), new TLcdXYZPoint(mouse_position.getX(), mouse_position.getY(), 0));
+					updatePolygon(track_layer_draw_polygons, polygon_user_clicks_track_id, polygon_preview, 0);
 				}
 		      }
 		    }

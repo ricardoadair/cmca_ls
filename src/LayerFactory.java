@@ -153,6 +153,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
            aModel.getModelDescriptor().getDisplayName().equals("Stipple pattern shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Extruded stipple shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Solid fill shapes") ||
+           aModel.getModelDescriptor().getDisplayName().equals("Solid fill shapes no select") ||
            aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Points with icon") ||
            aModel.getModelDescriptor().getDisplayName().equals("Polyline") ||
@@ -170,9 +171,11 @@ public class LayerFactory extends ALspSingleLayerFactory {
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Extruded stipple shapes")) {
       return createStipplePatternLayer(aModel, true);
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Solid fill shapes")) {
-      return createSolidFillLayer(aModel, false);
-    } else if (aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes")) {
-      return createSolidFillLayer(aModel, true);
+      return createSolidFillLayer(aModel, false, true);
+    }else if (aModel.getModelDescriptor().getDisplayName().equals("Solid fill shapes no select")) {
+        return createSolidFillLayer(aModel, false, false);
+    }else if (aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes")) {
+      return createSolidFillLayer(aModel, true, true);
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Points with icon")){
       ILspLayer layer = createPointWithIconLayer(aModel);
       setIconPath("");
@@ -272,7 +275,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
    * @param aExtruded
    * @return a layer using a solid color for filling the shapes of the given model
    */
-  private ILspLayer createSolidFillLayer(ILcdModel aModel, boolean aExtruded) {
+  private ILspLayer createSolidFillLayer(ILcdModel aModel, boolean aExtruded, boolean select) {
 
     //Create the fill styles
     TLspFillStyle.Builder fillStylebuilder = TLspFillStyle.newBuilder()
@@ -290,7 +293,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
     
     //Return the layer on which we set the created fill styles
     TLspShapeLayerBuilder layerBuilder = TLspShapeLayerBuilder.newBuilder().model(aModel)
-                .selectable(true)
+                .selectable(select)
                 .bodyEditable(true)
                 .bodyStyler(TLspPaintState.REGULAR, new TLspStyler(fillStyle,lineStyle))
                 .bodyStyler(TLspPaintState.SELECTED, new TLspStyler(selectedStyle, lineStyle))
