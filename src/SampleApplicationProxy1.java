@@ -215,6 +215,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   private boolean create_polygon_user_clicks = false;
   int polygon_user_clicks_track_id = -1;
   int rec_polygon_id = -1;
+  String recording_type = "";
   static boolean draw_polygon_mode = false;
   DecimalFormat df = new DecimalFormat("#.0000");
   DecimalFormat df_line = new DecimalFormat("#.00"); 
@@ -784,6 +785,19 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		track_layer_points_tracks = id_layer;
 	}
 	
+	public void updateTracksIconStyle(String new_icon_path) 
+	{
+		//Tracks
+		int id_layer = track_layer_points_tracks;
+		
+		removeTrackLayer(id_layer);
+		System.out.println("updateTracksIconStyle " + new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
+		
+		track_layer_points_tracks = id_layer;
+	}
+	
 	public void updateMarcksIconStyle() 
 	{
 		//Marks
@@ -802,6 +816,19 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		layerFactory.setIconPath(new_icon_path);
 		id_layer = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
 		files_to_delete.add(new_icon_path);
+		
+		track_layer_points_marks = id_layer;
+	}
+	
+	public void updateMarcksIconStyle(String new_icon_path) 
+	{
+		//Tracks
+		int id_layer = track_layer_points_marks;
+		
+		removeTrackLayer(id_layer);
+		System.out.println("updateMarcksIconStyle " + new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
 		
 		track_layer_points_marks = id_layer;
 	}
@@ -829,6 +856,19 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 				
 	}
 	
+	public void updateAcIconStyle(String new_icon_path) 
+	{
+		//Tracks
+		int id_layer = track_layer_ac_id;
+		
+		removeTrackLayer(id_layer);
+		System.out.println("updateAcIconStyle " + new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("AC layer", "EPSG:4326");
+		
+		track_layer_ac_id = id_layer;
+	}
+	
 	public void updateFlirIconStyle() 
 	{
 		//FLIR
@@ -850,6 +890,19 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		
 		track_layer_flir_id = id_layer;
 		
+	}
+	
+	public void updateFlirIconStyle(String new_icon_path) 
+	{
+		//Tracks
+		int id_layer = track_layer_flir_id;
+		
+		removeTrackLayer(id_layer);
+		System.out.println("updateFlirIconStyle " + new_icon_path);
+		layerFactory.setIconPath(new_icon_path);
+		id_layer = addTrackLayerPointWithIcon("Flir layer", "EPSG:4326");
+		
+		track_layer_flir_id = id_layer;
 	}
 	
 	public void setAc(String new_ac)
@@ -1071,8 +1124,26 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   public void startRec(int ID) {
 	  System.out.println("JAVA Start: " + ID);
 	  rec_polygon_id = ID;
-	  fMouseEventHandler.setDrawPolygonMode(true);
-	  draw_polygon_mode = true;
+	  recording_type = "";
+		try {
+			JSONObject track = conection.getTrackbyID(ID);
+			int type = track.containsKey("tipo_dato") ? (int)track.get("tipo_dato") : 0;
+			if(type == 5) {
+				recording_type = "Polyline";
+			}
+			else if(type == 3 || type == 4)
+			{
+				recording_type = "Polygon";
+			}
+			if(!recording_type.equals("")) {
+				fMouseEventHandler.setDrawPolygonMode(true);
+				draw_polygon_mode = true;	
+			}
+			
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	  return;
   }
   
@@ -1110,6 +1181,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			e.printStackTrace();
 		}
 	  rec_polygon_id = -1;
+	  recording_type = "";
 	  return;
   }
   
@@ -1667,6 +1739,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     }
   }
   
+  public void addPolyline(int aLayerId, int aTrackId, TLcd3DEditablePointList polyline, String aCallSign, long aTimeStamp)
+  {
+	  Map<String,Object> data = new HashMap<>();
+	  data.put("name", "");
+      data.put("description", ""); 
+      addPolyline(aLayerId, aTrackId, polyline, aCallSign, aTimeStamp, data);
+  }
+  
   public void addPolyline(int aLayerId, int aTrackId, TLcd3DEditablePointList polyline, String aCallSign, long aTimeStamp, Map<String,Object> data) {
 	    ILspLayer layer = fTrackLayers.get(aLayerId);
 	    if (layer != null) {
@@ -1709,6 +1789,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      }
 	      model.fireCollectedModelChanges();
 	    }
+  }
+  
+  public void updatePolyline(int aLayerId, int aTrackId, TLcd3DEditablePointList polyline, long aTimeStamp)
+  {
+	  Map<String,Object> data = new HashMap<>();
+	  data.put("name", "");
+      data.put("description", ""); 
+      updatePolyline(aLayerId, aTrackId, polyline, aTimeStamp, data);
   }
   
   public void updatePolyline(int aLayerId, int aTrackId, TLcd3DEditablePointList polyline, long aTimeStamp, Map<String,Object> data) {
@@ -2388,7 +2476,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		      if(clicks_points.getPointCount() > 0)
 		      {
 				if(create_polygon_user_clicks == false) {
-					addPolygon(track_layer_draw_polygons, polygon_user_clicks_track_id,  clicks_points, "Polygono", 0);
+					if(recording_type.equals("Polygon"))
+					{
+						addPolygon(track_layer_draw_polygons, polygon_user_clicks_track_id,  clicks_points, "Polygono", 0);
+					}
+					else if(recording_type.equals("Polyline"))
+					{
+						addPolyline(track_layer_draw_polygons, polygon_user_clicks_track_id,  clicks_points, "Polylinea", 0);
+					}
 					create_polygon_user_clicks = true;
 				}
 				else  
@@ -2400,7 +2495,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 						polygon_preview.insert3DPoint(i, new TLcdXYZPoint(p.getX(),p.getY(),0));
 					}
 					polygon_preview.insert3DPoint(clicks_points.getPointCount(), new TLcdXYZPoint(mouse_position.getX(), mouse_position.getY(), 0));
-					updatePolygon(track_layer_draw_polygons, polygon_user_clicks_track_id, polygon_preview, 0);
+					if(recording_type.equals("Polygon"))
+					{
+						updatePolygon(track_layer_draw_polygons, polygon_user_clicks_track_id, polygon_preview, 0);
+					}
+					else if(recording_type.equals("Polyline"))
+					{
+						updatePolyline(track_layer_draw_polygons, polygon_user_clicks_track_id, polygon_preview, 0);
+					}
 				}
 		      }
 		    }
