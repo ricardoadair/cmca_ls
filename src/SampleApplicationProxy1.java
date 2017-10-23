@@ -239,7 +239,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   
   //Icons Paths
   String base_path = "";
-  //String base_path = "/home/ricardoadair/CMCA/git/git_cmca/LVC_CMCA/";
   String icon_folder_path = "data/Iconos/";
   String track_icon_name = "Track.png";
   String marca_icon_name = "Marca.png";
@@ -253,6 +252,11 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 
   public SampleApplicationProxy1(long aNativePeer) {
     super(aNativePeer);
+    
+    String path = System.getProperty("user.dir");
+    path = path.endsWith("/data") ? path.replace("/data", "") : path;
+    System.out.println("JAVA run as: " +path);
+    setBasePath(path);
 
     getView().getServices().getGraphicsEffects().add(new TLspAmbientLight());
     getView().getServices().getGraphicsEffects().add(new TLspHeadLight(getView()));
@@ -260,7 +264,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     fAtomicInteger = new AtomicInteger();
     fTrackLayers = new HashMap<>();
     fPolygonTrackLayers = new HashMap<>();
-    update_icons_path();
 
     // Add navigation control, scale indicator and mouse readout to the overlay component.
     TLcdAWTUtil.invokeAndWait(() -> {
@@ -702,6 +705,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
 			flir_icon_name
 		);
+		System.out.println("Track icon: " + track_icon_path + " " + ( new File(track_icon_path).exists() ? "Correct" : "Error" ));
+		System.out.println("Marck icon: " + marck_icon_path + " " + ( new File(marck_icon_path).exists() ? "Correct" : "Error" ));
+		System.out.println("AC icon: " + ac_icon_path + " " + ( new File(ac_icon_path).exists() ? "Correct" : "Error" ));
+		System.out.println("FLIR icon: " + flir_icon_path + " " + ( new File(flir_icon_path).exists() ? "Correct" : "Error" ));
 	}
 	
 	public void updateAllIconStyles()
