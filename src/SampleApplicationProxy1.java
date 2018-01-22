@@ -10,7 +10,11 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.Label;
 import java.awt.Point;
 import java.awt.PopupMenu;
@@ -18,13 +22,18 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,12 +52,22 @@ import javax.swing.ButtonGroup;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
+import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
+import javax.swing.SpinnerModel;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.border.LineBorder;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import com.luciad.datamodel.ILcdDataObject;
 import com.luciad.datamodel.TLcdCoreDataTypes;
@@ -63,6 +82,7 @@ import com.luciad.geodesy.ILcdEllipsoid;
 import com.luciad.geodesy.TLcdEllipsoid;
 import com.luciad.geodesy.TLcdGeodeticDatum;
 import com.luciad.gui.TLcdAWTUtil;
+import com.luciad.gui.TLcdUndoManager;
 import com.luciad.gui.swing.TLcdOverlayLayout;
 import com.luciad.gui.swing.navigationcontrols.ALcdCompassNavigationControl;
 import com.luciad.model.ILcdModel;
@@ -102,6 +122,7 @@ import com.luciad.shape.shape3D.TLcdXYZPolypoint;
 import com.luciad.tea.ALcdTerrainElevationProvider;
 import com.luciad.tea.TLcdFixedLevelBasedRasterElevationProvider;
 import com.luciad.tea.TLcdHeightProviderAdapter;
+import com.luciad.text.TLcdDistanceFormat;
 import com.luciad.transformation.ILcdModelXYWorldTransformation;
 import com.luciad.transformation.ILcdModelXYZWorldTransformation;
 import com.luciad.transformation.TLcdDefaultModelXYZWorldTransformation;
@@ -109,6 +130,7 @@ import com.luciad.transformation.TLcdGeoReference2GeoReference;
 import com.luciad.util.ILcdFireEventMode;
 import com.luciad.util.ILcdSelectionListener;
 import com.luciad.util.TLcdConstant;
+import com.luciad.util.TLcdDistanceUnit;
 import com.luciad.util.TLcdHasGeometryAnnotation;
 import com.luciad.util.TLcdOutOfBoundsException;
 import com.luciad.util.concurrent.TLcdLockUtil;
@@ -116,6 +138,7 @@ import com.luciad.util.height.ILcdHeightProvider;
 import com.luciad.util.measure.ILcdLayerMeasureProviderFactory;
 import com.luciad.util.measure.ILcdModelMeasureProviderFactory;
 import com.luciad.view.ILcdXYZWorldReference;
+import com.luciad.view.TLcdAWTEventFilterBuilder;
 import com.luciad.view.lightspeed.ILspView;
 import com.luciad.view.lightspeed.TLspContext;
 import com.luciad.view.lightspeed.camera.ALspViewXYZWorldTransformation;
@@ -123,6 +146,9 @@ import com.luciad.view.lightspeed.camera.TLspViewXYZWorldTransformation2D;
 import com.luciad.view.lightspeed.camera.TLspViewXYZWorldTransformation3D;
 import com.luciad.view.lightspeed.controller.ILspController;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerController;
+import com.luciad.view.lightspeed.controller.ruler.TLspRulerDistanceFormatStyle;
+import com.luciad.view.lightspeed.controller.ruler.TLspRulerLabelStyler;
+import com.luciad.view.lightspeed.controller.ruler.TLspRulerSegmentLabelContentStyle;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerController.MeasureMode;
 import com.luciad.view.lightspeed.layer.ILspLayer;
 import com.luciad.view.lightspeed.layer.TLspCompositeLayerFactory;
@@ -130,12 +156,18 @@ import com.luciad.view.lightspeed.layer.TLspPaintState;
 import com.luciad.view.lightspeed.layer.shape.TLspShapeLayerBuilder;
 import com.luciad.view.lightspeed.layer.style.TLspLayerStyle;
 import com.luciad.view.lightspeed.painter.grid.TLspLonLatGridLayerBuilder;
+import com.luciad.view.lightspeed.painter.grid.TLspMGRSGridLayerBuilder;
 import com.luciad.view.lightspeed.painter.label.style.TLspDataObjectLabelTextProviderStyle;
 import com.luciad.view.lightspeed.services.effects.TLspAmbientLight;
 import com.luciad.view.lightspeed.services.effects.TLspHeadLight;
+import com.luciad.view.lightspeed.style.TLspFillStyle;
+import com.luciad.view.lightspeed.style.TLspLabelBoxStyle;
 import com.luciad.view.lightspeed.style.TLspLineStyle;
 import com.luciad.view.lightspeed.style.TLspTextStyle;
+import com.luciad.view.lightspeed.style.ILspWorldElevationStyle.ElevationMode;
 import com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke.PolylineBuilder;
+import com.luciad.view.lightspeed.style.styler.TLspCustomizableStyle;
+import com.luciad.view.lightspeed.style.styler.TLspCustomizableStyler;
 import com.luciad.view.lightspeed.swing.TLspBalloonManager;
 import com.luciad.view.lightspeed.swing.TLspScaleIndicator;
 import com.luciad.view.lightspeed.swing.navigationcontrols.TLspCompassNavigationControl;
@@ -144,7 +176,6 @@ import com.luciad.view.lightspeed.util.TLspViewNavigationUtil;
 import com.luciad.view.swing.ALcdBalloonDescriptor;
 import com.luciad.view.swing.ILcdBalloonContentProvider;
 import com.luciad.view.swing.TLcdModelElementBalloonDescriptor;
-
 import org.apache.batik.util.gui.LanguageDialog.Panel;
 import org.jdesktop.swingx.VerticalLayout;
 import org.json.simple.JSONObject;
@@ -174,84 +205,202 @@ import samples.lightspeed.common.MouseLocationComponent;*/
  * <p/>
  * For more information, see the developer article <i>How to integrate LuciadLightspeed in a C++ application</i> on the <a href="http://dev.luciad.com/">Luciad Developer Portal</a>.
  */
-public class SampleApplicationProxy1 extends LightspeedViewProxy {
-
-  private final Map<Integer, ILspLayer> fTrackLayers;
-  private final AtomicInteger fAtomicInteger;
-  private Component navigationControls;
-  private TLspScaleIndicator scaleIndicator;
-  TLspViewNavigationUtil navigationUtil;
-  public JLabel coords;
+public class SampleApplicationProxy1 extends LightspeedViewProxy 
+{
+  static CoordinateConversion convert = new CoordinateConversion();
+  private static final TLcdLonLatPoint FIRST_POINT = new TLcdLonLatPoint(10, 45);
+  int mission_ID = 0;
   ScheduledExecutorService timer;
   ScheduledExecutorService timer_delete;
-  
-  //Distance
-  JPanel distance_panel;
-  JCheckBox terrainModeCheckbox;
-  //Menu
-  JPanel menu_panel;
-  JCheckBox distance_ac_Checkbox;
-  JCheckBox distance_flir_Checkbox;
-  JCheckBox distance_select_track_Checkbox;
-  JCheckBox distance_free_Checkbox;
-  //String file_med = "Data/Dted/Alps/dmed";
-  String file_med = "";
-  private TerrainRulerController fTerrainRulerController = new TerrainRulerController(createNavigationController());
-  ILspLayer dtedLayer = null;
-  boolean load_file_med = false;
-  private boolean distance_mode = false;
-  private boolean distance_mode_manual = false;
-  private static final TLcdLonLatPoint FIRST_POINT = new TLcdLonLatPoint(10, 45);
-  int track_layer_distance = 0;
+  DecimalFormat df = new DecimalFormat("###,###.0000");
+  DecimalFormat df_line = new DecimalFormat("###,###.00"); 
   
   //Layers
-  int mission_ID = 0;
-  private final Map<Integer, Map<String, Object >> fPolygonTrackLayers;
-  LayerFactory layerFactory = new LayerFactory();
   int track_layer_points_tracks = 0;
+  int track_layer_points_tracks_predicted = 0;
   int track_layer_points_marks = 0;
   int rangos_armas_layer_id = 0;
   int track_layer_draw_polygons = 0;
-  private boolean create_polygon_user_clicks = false;
   int polygon_user_clicks_track_id = -1;
-  int rec_polygon_id = -1;
-  String recording_type = "";
-  static boolean draw_polygon_mode = false;
-  DecimalFormat df = new DecimalFormat("#.0000");
-  DecimalFormat df_line = new DecimalFormat("#.00"); 
-  //AC
-  TLcdLonLatHeightPoint ac_point = null;
-  int track_layer_ac_id = 0;
-  int track_ac_id = -2;
-  int track_distance_ac_id = -4;
-  String ac = "0,0";
-  //FLIR
-  TLcdLonLatHeightPoint flir_point = null;
-  int track_layer_flir_id = 0;
-  int track_flir_id = -3;
-  int track_distance_flir_id = -5;
-  String flir = "0,0";
-  //SelectTrack
-  static boolean isSelectAnyElement = false;
-  static TLcdLonLatHeightPoint select_track_point = null;
-  int track_distance_select_track_id = -6;
-  
   
   //Icons Paths
+  boolean update_styles = false;
+  List<String> files_to_delete = new ArrayList<String>();
   String base_path = "";
   String icon_folder_path = "data/Iconos/";
   String track_icon_name = "Track.png";
   String marca_icon_name = "Marca.png";
   String ac_icon_name = "AC.png";
   String flir_icon_name = "Pos_Camera.png";
-  boolean update_styles = false;
   String track_icon_path = "";
   String marck_icon_path = "";
   String ac_icon_path = "";
   String flir_icon_path = "";
-
-  public SampleApplicationProxy1(long aNativePeer) {
+	  
+  //Dictionarys to Tracks Elements
+  private final Map<Integer, ILspLayer> fTrackLayers;
+  private final Map<Integer, TLspLayerStyle> fTrackLayersStyles;
+  private static Map<Integer,Map<String, Object>> fElementsTracks = new HashMap<>();
+  private final Map<Integer, Map<String, Object >> fPolygonTrackLayers;
+  private final AtomicInteger fAtomicInteger;
+  
+  //LUCIAD Componets
+  private Component navigationControls;
+  private TLspScaleIndicator scaleIndicator;
+  TLspViewNavigationUtil navigationUtil;
+  LayerFactory layerFactory = new LayerFactory();
+  
+  //IU
+  Color back_color = new Color(22, 22, 22);
+  Color text_color = Color.WHITE;
+  Color border_color = new Color(65,65,65);
+  private boolean show_hide_panel = false;
+  public JLabel coords;
+  
+  //Tools panel
+  JPanel tools_panel;
+  JPanel tools_single_panel;
+  
+  //Distance
+  JPanel distance_mode_panel;
+  JCheckBox terrainModeCheckbox;
+  
+  //Menu Distance
+  JCheckBox distance_ac_Checkbox;
+  JCheckBox distance_flir_Checkbox;
+  JCheckBox distance_select_track_Checkbox;
+  JCheckBox distance_free_Checkbox;
+  
+  //Prediction Tool
+  private boolean prediction_select_mode = false;
+  private boolean prediction_all_tracks_mode = false;
+  JCheckBox prediction_select_time_Checkbox;
+  JCheckBox prediction_all_tracks_time_Checkbox;
+  JSpinner prediction_time_minutes_spinner;
+  JSpinner prediction_time_hours_spinner;
+  boolean prediction_point_create = false;
+  List<Integer> prediction_tracks_painted = new ArrayList<Integer>();
+  TLcdLonLatHeightPoint prediction_time_point = null;
+  
+  //Polygon recording
+  static boolean draw_polygon_mode = false;
+  private boolean create_polygon_user_clicks = false;
+  int rec_polygon_id = -1;
+  String recording_type = "";
+  
+  //AC
+  boolean create_line_ac = false;
+  TLcdLonLatHeightPoint ac_point = null;
+  int track_layer_ac_id = 0;
+  int track_ac_id = -2;
+  int track_distance_ac_id = -4;
+  String ac = "0,0";
+  
+  //FLIR
+  boolean create_line_flir = false;
+  TLcdLonLatHeightPoint flir_point = null;
+  int track_layer_flir_id = 0;
+  int track_flir_id = -3;
+  int track_distance_flir_id = -5;
+  String flir = "0,0";
+  
+  //SelectTrack
+  boolean create_line_select_track = false;
+  static boolean isSelectAnyElement = false;
+  static int select_track_point_id = 0;
+  int track_distance_select_track_id = -6;
+  public native void objectSelected(long aNativePeer, Object aDataObject);
+  
+  //Measurement
+  boolean load_file_med = false;
+  String file_med = "";
+  private TerrainRulerController fTerrainRulerController;
+  ILspController defaul_controller;
+  ILspLayer dtedLayer = null;
+  int track_layer_distance = 0;
+  private boolean distance_mode = false;
+  private boolean distance_mode_manual = false;
+  static String unity_id_GD = "GD";
+  static String unity_id_GMS = "GMS";
+  static String unity_id_UTM = "UTM";
+  static String unity_id_MGRS = "MGRS";
+  static String default_unit_location = unity_id_GD;
+  static String unity_id_meter = "m";
+  static String unity_id_kilometer = "km";
+  static String unity_id_mile = "mi";
+  static String unity_id_nautical_mile = "NM";
+  static String unity_id_feet = "ft";
+  String default_unit_longitude = unity_id_meter; 
+  static Map<String,Map<String, Object>> units_longitude = new HashMap<String,Map<String, Object>>() {
+	{
+	    put(
+	    	unity_id_meter, 
+    		new HashMap<String,Object>() {
+				{
+				    put("name", "Metro");
+				    put("abbreviation", "m");
+				    put("operation_meters_to", "*");
+				    put("value_meters_to", 1);
+			  	}
+			  }
+	    );
+	    put(
+	    	unity_id_kilometer, 
+    		new HashMap<String,Object>() {
+				{
+				    put("name", "Kilómetro");
+				    put("abbreviation", "km");
+				    put("operation_meters_to", "/");
+				    put("value_meters_to", 1000);
+			  	}
+			  }
+	    );
+	    put(
+	    	unity_id_mile, 
+    		new HashMap<String,Object>() {
+				{
+				    put("name", "Milla");
+				    put("abbreviation", "mi");
+				    put("operation_meters_to", "/");
+				    put("value_meters_to", 1609.34);//1 mi = 1609.34 m
+			  	}
+			  }
+	    );
+	    put(
+	    	unity_id_nautical_mile, 
+    		new HashMap<String,Object>() {
+				{
+				    put("name", "Milla náutica");
+				    put("abbreviation", "NM");
+				    put("operation_meters_to", "/");
+				    put("value_meters_to", 1852);// 1ni = 1852 m
+			  	}
+			  }
+	    );
+	    put(
+    		unity_id_feet, 
+    		new HashMap<String,Object>() {
+				{
+				    put("name", "Pie");
+				    put("abbreviation", "ft");
+				    put("operation_meters_to", "/");
+				    put("value_meters_to", 0.3048);// 1ft = 0.3048 m
+			  	}
+			  }
+	    );
+  	}
+  };
+  
+  public SampleApplicationProxy1(long aNativePeer) 
+  {
     super(aNativePeer);
+    
+    //fTerrainRulerController = new TLspRulerController();
+    fTerrainRulerController = new TerrainRulerController(createNavigationController());
+    fTerrainRulerController.addUndoableListener(new TLcdUndoManager());
+    fTerrainRulerController.setAWTFilter(TLcdAWTEventFilterBuilder.newBuilder().leftMouseButton().or().rightMouseButton().or().keyEvents().build());
+    //fTerrainRulerController.appendController(createNavigationController());
+    initRulerControllerStyles();
     
     String path = System.getProperty("user.dir");
     path = path.endsWith("/data") ? path.replace("/data", "") : path;
@@ -263,6 +412,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 
     fAtomicInteger = new AtomicInteger();
     fTrackLayers = new HashMap<>();
+    fTrackLayersStyles = new HashMap<>();
     fPolygonTrackLayers = new HashMap<>();
 
     // Add navigation control, scale indicator and mouse readout to the overlay component.
@@ -276,17 +426,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           .build();
       overlay.add(navigationControls);
       layout.putConstraint(navigationControls, TLcdOverlayLayout.Location.NORTH_EAST, TLcdOverlayLayout.ResolveClash.VERTICAL);
-      
-//      final Component compass;
-//      try {
-//        compass = new TLspCompassNavigationControl(
-//        		( base_path.endsWith("/") ? base_path : base_path + "/" ) + 
-//    			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ), getView());
-//        overlay.add(compass);
-//        layout.putConstraint(compass, TLcdOverlayLayout.Location.NORTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
-//      } catch (IOException ignored) {
-//      }
-     
       
 
       scaleIndicator = new TLspScaleIndicator(getView());
@@ -312,16 +451,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       jpop.add("uno");
       overlay.add(jpop);
       
-      //Panel to distance
-      distance_panel = buildMeasureModePanel();
-      distance_panel.setVisible(false);
-      overlay.add(distance_panel);
-      layout.putConstraint(distance_panel, TLcdOverlayLayout.Location.NORTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
-      
-      //Panel to distance
-      menu_panel = buildMenuPanel();
-      overlay.add(menu_panel);
-      layout.putConstraint(menu_panel, TLcdOverlayLayout.Location.NORTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
+      //Tools Panel
+      tools_panel = buildToolsPanel();
+      overlay.add(tools_panel);
+      layout.putConstraint(tools_panel, TLcdOverlayLayout.Location.NORTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
       
       TLspBalloonManager mgr = new TLspBalloonManager(
           getView(),
@@ -351,19 +484,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           TLcdOverlayLayout.Location.SOUTH
       );*/
       
-      //Cheking opacity
-      
-	  //prueba_opacity_layer_id = addTrackLayerPolygon("2", "EPSG:4326");
-      //addPolygon(prueba_opacity_layer_id, 9999, generate3DRandomPolygon(), "Polygono " + 9999, 0);
-	  /*prueba_opacity_layer_id = addTrackLayer("2", "EPSG:4326");
-	  addTrack(prueba_opacity_layer_id, 1434, -80, 15, 0, "Poligono Prueba opacity", 0);*/
-      
-      //prueba_opacity_layer_id = addTrackLayerLine("prueba line", "EPSG:4326");
-      //addCircle(prueba_opacity_layer_id, 999, generateRandomPoint(), "Distance AC", 0, 1000);
-      
     });
 
     getView().addLayer(TLspLonLatGridLayerBuilder.newBuilder().build());
+    //getView().addLayer(TLspMGRSGridLayerBuilder.newBuilder().build());
     navigationUtil = new TLspViewNavigationUtil(getView());
     
     timer = Executors.newSingleThreadScheduledExecutor();
@@ -372,39 +496,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     
 	timer.scheduleAtFixedRate(update, 200, 200, TimeUnit.MILLISECONDS);
 	
-	//timer.scheduleAtFixedRate(deleteExtraIconFiles, 1, 5, TimeUnit.SECONDS);
-	
-	
-	//timer.scheduleAtFixedRate(update_all_layers_opacity, 10, 5, TimeUnit.SECONDS);
   }
-  
-  int prueba_opacity_layer_id = 0;
-  float opacity = 0.9f;
-  
-  final Runnable update_all_layers_opacity = new Runnable() {
-	  public void run() {
-		  /*for (Map.Entry<Integer, ILspLayer> layer : fTrackLayers.entrySet())
-		  {
-			  System.out.println("Update opacity " + layer.getKey());// + "/" + layer.getValue());
-			  //ILspLayer aLayer = layer.getValue();
-			  int aLayerId = layer.getKey();
-			  //float alphaChange = 0.05f;
-//		      float currentOpacity = aLayer.getLayerStyle().getOpacity();
-//		      float newOpacity = currentOpacity - alphaChange;
-			  double newOpacity = Math.random();
-		      System.out.println("newOpacity " + newOpacity);
-			  //opacity(aLayerId, (float)(newOpacity));
-		  }*/
-		  if(prueba_opacity_layer_id != 0)
-		  {
-			  opacity = opacity - 0.1f;
-			  if(0< opacity && opacity < 1)
-			  {
-				  opacity(prueba_opacity_layer_id, opacity);
-			  }
-		  }
-	  }
-	};
   
   final Runnable update_points = new Runnable() {
 	  public void run() {
@@ -442,49 +534,278 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		  delete_files();
 	  }
 	};
-	
-	private JPanel buildMeasureModePanel() {
-	    JRadioButton geodeticMeasureModeRadioButton = new JRadioButton( "Geodésica" );
-	    geodeticMeasureModeRadioButton.addItemListener(new ItemListener() {
-	      public void itemStateChanged(ItemEvent e) {
-	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_GEODETIC);
+		
+	/*private TLspCustomizableStyle fLineStyle1;
+	  private TLspCustomizableStyle fLineStyle2;
+	  private TLspCustomizableStyle fCircleStyle;
+	 */ 
+	  private TLspCustomizableStyle fSegmentLabelStyle;
+	  private TLspCustomizableStyle fSegmentTextStyle;
+	  private TLspCustomizableStyle fSegmentLabelContentStyle;
+
+	  private TLspCustomizableStyle fTotalLabelStyle;
+	  private TLspCustomizableStyle fTotalTextStyle;
+	  private TLspCustomizableStyle fTotalLabelContentStyle;
+	  
+	  private void initRulerControllerStyles() {
+	    /*TLspLineStyle primaryLineStyle = TLspLineStyle.newBuilder()
+	                                                  .color(Color.blue)
+	                                                  .width(4.0f)
+	                                                  .build();
+
+	    TLspLineStyle secondaryLineStyle = TLspLineStyle.newBuilder()
+	                                                    .color(Color.white)
+	                                                    .width(2.0f)
+	                                                    .build();
+
+	    TLspLineStyle circleLineStyle = TLspLineStyle.newBuilder()
+	                                                 .elevationMode(ElevationMode.ON_TERRAIN)
+	                                                 .color(Color.blue)
+	                                                 .width(1.0f)
+	                                                 .build();
+
+	    TLspFillStyle circleFillStyle = TLspFillStyle.newBuilder()
+	                                                 .elevationMode(ElevationMode.ON_TERRAIN)
+	                                                 .color(Color.lightGray)
+	                                                 .opacity(0.3f)
+	                                                 .build();*/
+
+	    //We create customizable stylers to enable us to easily modify the styles at runtime.
+	    //TLspCustomizableStyler lineStyler = new TLspCustomizableStyler(primaryLineStyle, secondaryLineStyle);
+	    //TLspCustomizableStyler circleStyler = new TLspCustomizableStyler(circleLineStyle, circleFillStyle);
+	    TLspRulerLabelStyler labelStyler = new TLspRulerLabelStyler();
+
+	    //We store the resulting customizable styles in fields to to be able to easily change them.
+	    /*for (TLspCustomizableStyle style : lineStyler.getStyles()) {
+	      if (style.getStyle() == primaryLineStyle) {
+	        fLineStyle1 = style;
+	      } else if (style.getStyle() == secondaryLineStyle) {
+	        fLineStyle2 = style;
 	      }
-	    });
-
-	    JRadioButton rhumbLineMeasureModeRadioButton = new JRadioButton( "Acimut" );
-	    rhumbLineMeasureModeRadioButton.addItemListener(new ItemListener() {
-	      public void itemStateChanged(ItemEvent e) {
-	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_RHUMB);
+	    }
+	    for (TLspCustomizableStyle style : circleStyler.getStyles()) {
+	      if (style.getStyle() == circleLineStyle) {
+	        fCircleStyle = style;
 	      }
-	    });
-	    geodeticMeasureModeRadioButton.setSelected(true);
-
-	    terrainModeCheckbox = new JCheckBox( "Sobre terreno" );
-	    terrainModeCheckbox.setSelected(false);
-	    terrainModeCheckbox.addItemListener(new ItemListener() {
-	      public void itemStateChanged(ItemEvent e) {
-	        boolean useTerrain = e.getStateChange() == ItemEvent.SELECTED;
-	        fTerrainRulerController.setUseTerrain(useTerrain);
+	    }*/
+	    for (TLspCustomizableStyle style : labelStyler.getStyles()) {
+	      if (TLspRulerLabelStyler.SEGMENT.equals(style.getIdentifier())) {
+	        if (style.getStyle() instanceof TLspTextStyle) {
+	          fSegmentTextStyle = style;
+	        } else if (style.getStyle() instanceof TLspLabelBoxStyle) {
+	          fSegmentLabelStyle = style;
+	        } else if (style.getStyle() instanceof TLspRulerSegmentLabelContentStyle) {
+	          fSegmentLabelContentStyle = style;
+	        }
+	      } else if (TLspRulerLabelStyler.TOTAL.equals(style.getIdentifier())) {
+	        if (style.getStyle() instanceof TLspTextStyle) {
+	          fTotalTextStyle = style;
+	        } else if (style.getStyle() instanceof TLspLabelBoxStyle) {
+	          fTotalLabelStyle = style;
+	        } else if (style.getStyle() instanceof TLspRulerDistanceFormatStyle) {
+	          fTotalLabelContentStyle = style;
+	        }
 	      }
-	    });
-	    fTerrainRulerController.setUseTerrain(false);
-	    
-	    ButtonGroup measureModesGroup = new ButtonGroup();
-	    measureModesGroup.add(geodeticMeasureModeRadioButton);
-	    measureModesGroup.add(rhumbLineMeasureModeRadioButton);
+	    }
 
-	    JPanel measureModePanel = new JPanel( new GridLayout( 3, 1 ) );
-	    measureModePanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
-	    measureModePanel.add(geodeticMeasureModeRadioButton);
-	    measureModePanel.add(rhumbLineMeasureModeRadioButton);
-	    measureModePanel.add(terrainModeCheckbox);
-
-	    //return TitledPanel.createTitledPanel( "Measure mode", measureModePanel );
-	    return measureModePanel;
+	    //fTerrainRulerController.setLineStyler(lineStyler);
+	    //fTerrainRulerController.setCircleStyler(circleStyler);
+	    fTerrainRulerController.setLabelStyler(labelStyler);
 	  }
 	
-	private JPanel buildMenuPanel() {
+	 private void updateUnit(TLcdDistanceFormat distanceFormat){
+		 distanceFormat.setMaximumFractionDigits(2);
+		 //distanceFormat.format(df_line);
+		 //NumberFormat s = new DecimalFormat( "#,###.##" );
+		 //distanceFormat.format(s);
+         TLspRulerSegmentLabelContentStyle segmentContentStyle = (TLspRulerSegmentLabelContentStyle) fSegmentLabelContentStyle.getStyle();
+         fSegmentLabelContentStyle.setStyle(segmentContentStyle.asBuilder().distanceFormat(distanceFormat).build());
+         TLspRulerDistanceFormatStyle totalContentStyle = (TLspRulerDistanceFormatStyle) fTotalLabelContentStyle.getStyle();
+         fTotalLabelContentStyle.setStyle(totalContentStyle.asBuilder().distanceFormat(distanceFormat).build());
+	 }
+	 
+	 private void setColors(Component comp)
+	 {
+		 comp.setBackground(back_color);
+		 comp.setForeground(text_color);
+	 }
+	 
+	 private JPanel buildToolsPanel() {
+
+	    GridBagLayout gbl=new GridBagLayout();
+	    GridBagConstraints gbc=new GridBagConstraints();
 	    
+		JPanel menuPanel = new JPanel();
+		menuPanel.setLayout(gbl);
+		//menuPanel.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
+		setColors(menuPanel);
+			
+		tools_single_panel = new JPanel(new GridLayout( 4, 1 ));
+		setColors(tools_single_panel);
+		//tools_single_panel.setVisible(false);
+		tools_single_panel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
+		 
+		JButton show_hide_button = new JButton(">>");
+		Font font = new Font("Arial Black",Font.PLAIN, 10);
+		show_hide_button.setFont(font);
+		show_hide_button.setBorder(BorderFactory.createEmptyBorder(2,2,2,2));
+		setColors(show_hide_button);
+		
+		show_hide_button.addActionListener(new ActionListener() 
+		{
+			public void actionPerformed(ActionEvent e) 
+			{
+				//It's visible
+				if(show_hide_panel == true)
+				{
+					//Hide Tools panel
+					//tools_single_panel.setVisible(false);
+					menuPanel.remove(tools_single_panel);
+					show_hide_button.setText(">>");
+					menuPanel.repaint();
+					
+				}
+				//Is not visible
+				else 
+				{
+					//Show Tools Panel
+					//tools_single_panel.setVisible(true);
+					gbc.fill=GridBagConstraints.NORTH;
+			        gbc.insets=new Insets(10,0,0,0);
+			        gbc.anchor=GridBagConstraints.NORTHWEST;
+			        gbc.gridwidth = GridBagConstraints.REMAINDER;
+					menuPanel.add(tools_single_panel, gbc);
+					show_hide_button.setText("<<");
+					menuPanel.repaint();
+				}
+				show_hide_panel = !show_hide_panel;			
+			}
+		});
+		
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//Measure Panel
+		JRadioButton decimaleRadioButton = new JRadioButton( "GD" );
+	    decimaleRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	    	  default_unit_location = unity_id_GD;
+	      }
+	    });
+	    decimaleRadioButton.setSelected(true);
+	    setColors(decimaleRadioButton);
+	    
+	    JRadioButton gradeRadioButton = new JRadioButton( "GMS" );
+	    gradeRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	    	  default_unit_location = unity_id_GMS;
+	      }
+	    });
+	    setColors(gradeRadioButton);
+	    
+	    JRadioButton mgrsRadioButton = new JRadioButton( "MGRS" );
+	    mgrsRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        default_unit_location = unity_id_MGRS;
+	      }
+	    });
+	    setColors(mgrsRadioButton);
+	    
+	    JRadioButton utmRadioButton = new JRadioButton( "UTM" );
+	    utmRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        default_unit_location = unity_id_UTM;
+	      }
+	    });
+	    setColors(utmRadioButton);
+	    
+	    JRadioButton metersRadioButton = new JRadioButton(getAbbreviationOfUnity(unity_id_meter));
+	    metersRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	    	  default_unit_longitude = unity_id_meter; 
+	    	  updateUnit(new TLcdDistanceFormat(TLcdDistanceUnit.METRE_UNIT));
+	      }
+	    });
+	    metersRadioButton.setSelected(true);
+	    setColors(metersRadioButton);
+	    
+	    JRadioButton kmRadioButton = new JRadioButton( getAbbreviationOfUnity(unity_id_kilometer) );
+	    kmRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	    	default_unit_longitude = unity_id_kilometer; 
+	    	updateUnit(new TLcdDistanceFormat(TLcdDistanceUnit.KM_UNIT));
+	      }
+	    });
+	    setColors(kmRadioButton);
+	    
+	    JRadioButton mileRadioButton = new JRadioButton( getAbbreviationOfUnity(unity_id_mile) );//1609.34 m
+	    mileRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	    	  default_unit_longitude = unity_id_mile;
+	    	  updateUnit(new TLcdDistanceFormat(TLcdDistanceUnit.MILE_US_UNIT));
+	      }
+	    });
+	    setColors(mileRadioButton);
+	    
+	    JRadioButton nauticalMileRadioButton = new JRadioButton( getAbbreviationOfUnity(unity_id_nautical_mile ) ); // 1852 m
+	    nauticalMileRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	    	  default_unit_longitude = unity_id_nautical_mile; 
+	    	  updateUnit(new TLcdDistanceFormat(TLcdDistanceUnit.NM_UNIT));
+	      }
+	    });
+	    setColors(nauticalMileRadioButton);
+	    
+	    JRadioButton feetRadioButton = new JRadioButton( getAbbreviationOfUnity(unity_id_feet)); // 0.3048 m
+	    feetRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	    	  default_unit_longitude = unity_id_feet; 
+	    	  updateUnit(new TLcdDistanceFormat(TLcdDistanceUnit.FT_UNIT));
+	      }
+	    });
+	    setColors(feetRadioButton);
+	    
+	    ButtonGroup measureSelectModesGroup = new ButtonGroup();
+	    measureSelectModesGroup.add(decimaleRadioButton);
+	    measureSelectModesGroup.add(gradeRadioButton);
+	    measureSelectModesGroup.add(mgrsRadioButton);
+	    measureSelectModesGroup.add(utmRadioButton);
+	    
+	    ButtonGroup measurelongModesGroup = new ButtonGroup();
+	    measurelongModesGroup.add(metersRadioButton);
+	    measurelongModesGroup.add(kmRadioButton);
+	    measurelongModesGroup.add(mileRadioButton);
+	    measurelongModesGroup.add(nauticalMileRadioButton);
+	    measurelongModesGroup.add(feetRadioButton);
+	    
+	    JPanel measurePanel = new JPanel( new GridLayout( 1, 1 ) );
+	    //measureModePanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+	    TitledBorder measurePanel_border = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Unidades Geográficas",1,1,null,text_color);
+	    measurePanel_border.setBorder(new LineBorder(border_color, 1, true));
+	    measurePanel.setBorder(measurePanel_border);
+	    JPanel measurelongPanel = new JPanel( new GridLayout( 1, 1 ) );
+	    TitledBorder measurelongPanel_border = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Unidades de longitud",1,1,null,text_color);
+	    measurelongPanel_border.setBorder(new LineBorder(border_color, 1, true));
+	    measurelongPanel.setBorder(measurelongPanel_border);
+	    setColors(measurePanel);
+	    measurePanel.add(decimaleRadioButton);
+	    measurePanel.add(gradeRadioButton);
+	    measurePanel.add(mgrsRadioButton);
+	    measurePanel.add(utmRadioButton);
+	    
+	    setColors(measurelongPanel);
+	    measurelongPanel.add(metersRadioButton);
+	    measurelongPanel.add(kmRadioButton);
+	    measurelongPanel.add(mileRadioButton);
+	    measurelongPanel.add(nauticalMileRadioButton);
+	    measurelongPanel.add(feetRadioButton);
+	    
+	    JPanel mPanel = new JPanel( new GridLayout( 2, 1 ) );
+	    setColors(mPanel);
+	    mPanel.add(measurePanel);
+	    mPanel.add(measurelongPanel);
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	    
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	    //Distance Panel
 	    distance_ac_Checkbox = new JCheckBox( "Distancia AC" );
 		distance_ac_Checkbox.setSelected(false);
 		distance_ac_Checkbox.addItemListener(new ItemListener() {
@@ -500,6 +821,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        distanceTo();
 	      }
 	    });
+		setColors(distance_ac_Checkbox);
 		distance_flir_Checkbox = new JCheckBox( "Distancia FLIR" );
 		distance_flir_Checkbox.setSelected(false);
 		distance_flir_Checkbox.addItemListener(new ItemListener() {
@@ -515,6 +837,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        distanceTo();
 	      }
 	    });
+		setColors(distance_flir_Checkbox);
 		distance_select_track_Checkbox = new JCheckBox( "Distancia Track seleccionado" );
 		distance_select_track_Checkbox.setSelected(false);
 		distance_select_track_Checkbox.addItemListener(new ItemListener() {
@@ -530,7 +853,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        distanceTo();
 	      }
 	    });
-		
+		setColors(distance_select_track_Checkbox);
 		distance_free_Checkbox = new JCheckBox( "Distancia libre" );
 		distance_free_Checkbox.setSelected(false);
 		distance_free_Checkbox.addItemListener(new ItemListener() {
@@ -548,41 +871,261 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        }
 	      }
 	    });
+		setColors(distance_free_Checkbox);
 	    
-	    //ButtonGroup measureModesGroup = new ButtonGroup();
-	    //measureModesGroup.add(distance_ac_button);
-	    //measureModesGroup.add(distance_flir_button);
-	    //measureModesGroup.add(distance_ac_Checkbox);
-	    //measureModesGroup.add(distance_flir_Checkbox);
-		//measureModesGroup.add(distance_select_track_Checkbox);
+	    JPanel menuDistance = new JPanel( new GridLayout( 4, 1 ) );
+	    //menuDistance.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+	    TitledBorder menuDistance_border = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Herramientas de medición",1,1,null,text_color);
+	    menuDistance_border.setBorder(new LineBorder(border_color, 1, true));
+	    menuDistance.setBorder(menuDistance_border);
+	    setColors(menuDistance);
+	    menuDistance.add(distance_ac_Checkbox);
+	    menuDistance.add(distance_flir_Checkbox);
+	    menuDistance.add(distance_select_track_Checkbox);
+	    menuDistance.add(distance_free_Checkbox);
+	      
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	    //Measure Mode Panel
+	    JRadioButton geodeticMeasureModeRadioButton = new JRadioButton( "Geodésica" );
+	    geodeticMeasureModeRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_GEODETIC);
+	      }
+	    });
+	    setColors(geodeticMeasureModeRadioButton);
 
-	    JPanel menuPanel = new JPanel( new GridLayout( 4, 1 ) );
-	    menuPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
-	    menuPanel.add(distance_ac_Checkbox);
-	    menuPanel.add(distance_flir_Checkbox);
-	    menuPanel.add(distance_select_track_Checkbox);
-	    menuPanel.add(distance_free_Checkbox);
-	    return menuPanel;
-	  }
+	    JRadioButton rhumbLineMeasureModeRadioButton = new JRadioButton( "Acimut" );
+	    rhumbLineMeasureModeRadioButton.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        fTerrainRulerController.setMeasureMode(MeasureMode.MEASURE_RHUMB);
+	      }
+	    });
+	    setColors(rhumbLineMeasureModeRadioButton);
+	    
+	    geodeticMeasureModeRadioButton.setSelected(true);
+
+	    terrainModeCheckbox = new JCheckBox( "Sobre terreno" );
+	    terrainModeCheckbox.setSelected(false);
+	    terrainModeCheckbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean useTerrain = e.getStateChange() == ItemEvent.SELECTED;
+	        fTerrainRulerController.setUseTerrain(useTerrain);
+	      }
+	    });
+	    setColors(terrainModeCheckbox);
+	    fTerrainRulerController.setUseTerrain(false);
+	    
+	    ButtonGroup measureModesGroup = new ButtonGroup();
+	    measureModesGroup.add(geodeticMeasureModeRadioButton);
+	    measureModesGroup.add(rhumbLineMeasureModeRadioButton);
+
+	    distance_mode_panel = new JPanel( new GridLayout( 2, 2 ) );
+	    //distance_panel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+	    TitledBorder distance_mode_panel_border = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Distancia libre",1,1,null,text_color);
+	    distance_mode_panel_border.setBorder(new LineBorder(border_color, 1, true));
+	    distance_mode_panel.setBorder(distance_mode_panel_border);
+	    setColors(distance_mode_panel);
+	    distance_mode_panel.add(geodeticMeasureModeRadioButton);
+	    distance_mode_panel.add(rhumbLineMeasureModeRadioButton);
+	    distance_mode_panel.add(terrainModeCheckbox);
+	    //distance_mode_panel.setVisible(false);
+	    
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		//Prediction Panel
+	    prediction_select_time_Checkbox = new JCheckBox( "Track seleccionado" );
+	    prediction_select_time_Checkbox.setSelected(false);
+	    prediction_select_time_Checkbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean active = e.getStateChange() == ItemEvent.SELECTED;
+	        if(active)
+	        {
+	          prediction_all_tracks_time_Checkbox.setSelected(false);
+	          prediction_select_mode = true;
+	        }
+	        else
+	        {
+	          prediction_select_mode = false;
+	          clearTrackLayer(track_layer_points_tracks_predicted);
+	          prediction_point_create = false;
+	          prediction_tracks_painted.clear();
+	        }
+	        
+	        if(prediction_all_tracks_time_Checkbox.isSelected() || prediction_select_time_Checkbox.isSelected())
+	        {
+	        	if(prediction_time_hours_spinner.isEnabled() == false)
+	        	{
+	        		prediction_time_hours_spinner.setEnabled(true);
+	        	}
+	        	if(prediction_time_minutes_spinner.isEnabled() == false)
+	        	{
+	        		prediction_time_minutes_spinner.setEnabled(true);
+	        	}
+	        }
+	        else
+	        {
+	        	if(prediction_time_hours_spinner.isEnabled())
+	        	{
+	        		prediction_time_hours_spinner.setEnabled(false);
+	        	}
+	        	if(prediction_time_minutes_spinner.isEnabled())
+	        	{
+	        		prediction_time_minutes_spinner.setEnabled(false);
+	        	}
+	        }
+	        
+	      }
+	    });
+	    setColors(prediction_select_time_Checkbox);
+	    
+	    prediction_all_tracks_time_Checkbox = new JCheckBox( "Todos los tracks" );
+	    prediction_all_tracks_time_Checkbox.setSelected(false);
+	    prediction_all_tracks_time_Checkbox.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean active = e.getStateChange() == ItemEvent.SELECTED;
+	        if(active)
+	        {
+	          prediction_select_time_Checkbox.setSelected(false);
+	          prediction_all_tracks_mode = true;
+	        }
+	        else
+	        {
+	          prediction_all_tracks_mode = false;
+	          clearTrackLayer(track_layer_points_tracks_predicted);
+	          prediction_point_create = false;
+	          prediction_tracks_painted.clear();
+	        }
+	        
+	        if(prediction_all_tracks_time_Checkbox.isSelected() || prediction_select_time_Checkbox.isSelected())
+	        {
+	        	if(prediction_time_hours_spinner.isEnabled() == false)
+	        	{
+	        		prediction_time_hours_spinner.setEnabled(true);
+	        	}
+	        	if(prediction_time_minutes_spinner.isEnabled() == false)
+	        	{
+	        		prediction_time_minutes_spinner.setEnabled(true);
+	        	}
+	        }
+	        else
+	        {
+	        	if(prediction_time_hours_spinner.isEnabled())
+	        	{
+	        		prediction_time_hours_spinner.setEnabled(false);
+	        	}
+	        	if(prediction_time_minutes_spinner.isEnabled())
+	        	{
+	        		prediction_time_minutes_spinner.setEnabled(false);
+	        	}
+	        }
+	        
+	      }
+	    });
+	    setColors(prediction_all_tracks_time_Checkbox);
+	    
+	    //Creacion del JSpinner y valor incial.	
+ 		SpinnerModel sm = new SpinnerNumberModel(120, 1, 1440, 1); //default value,lower bound,upper bound,increment by	
+ 		prediction_time_minutes_spinner = new JSpinner(sm);
+ 		prediction_time_minutes_spinner.setEnabled(false);
+ 		//JFormattedTextField tf = ((JSpinner.DefaultEditor)prediction_time_spinner.getEditor()).getTextField();
+ 		//tf.setEditable(false);
+ 		prediction_time_minutes_spinner.addChangeListener(new ChangeListener() {
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				System.out.println("Tiempo predicción"+ prediction_time_minutes_spinner.getValue().toString());
+				prediction_time_hours_spinner.setValue( Double.parseDouble(prediction_time_minutes_spinner.getValue().toString()) / 60 );
+			}
+		
+		});
+ 		setColors(prediction_time_minutes_spinner);
+ 		
+ 		SpinnerModel smh = new SpinnerNumberModel(2, 1, 24, 1); //default value,lower bound,upper bound,increment by	
+ 		prediction_time_hours_spinner = new JSpinner(smh);
+ 		prediction_time_hours_spinner.setEnabled(false);
+ 		//JFormattedTextField tf = ((JSpinner.DefaultEditor)prediction_time_spinner.getEditor()).getTextField();
+ 		//tf.setEditable(false);
+ 		prediction_time_hours_spinner.addChangeListener(new ChangeListener() {
+			@Override
+			public void stateChanged(ChangeEvent e) {
+				//System.out.println("Tiempo predicción"+ prediction_time_hours_spinner.getValue().toString());
+				prediction_time_minutes_spinner.setValue( Double.parseDouble(prediction_time_hours_spinner.getValue().toString()) * 60 );
+			}
+		
+		});
+ 		setColors(prediction_time_hours_spinner);
+
+	    JPanel menuPredictionPanel = new JPanel( new GridLayout( 2, 1 ) );
+	    //menuPredictionPanel.setBorder(BorderFactory.createEmptyBorder(0, 5, 5, 5));
+	    
+	    TitledBorder menuPredictionPanel_border = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Herramienta de predicción",1,1,null,text_color);
+	    menuPredictionPanel_border.setBorder(new LineBorder(border_color, 1, true));
+	    menuPredictionPanel.setBorder(menuPredictionPanel_border);
+	    setColors(menuPredictionPanel);
+	    
+	    JPanel sub_panel_1 = new JPanel( new GridLayout( 2, 1 ) );
+	    setColors(sub_panel_1);
+	    sub_panel_1.add(prediction_all_tracks_time_Checkbox);
+	    sub_panel_1.add(prediction_select_time_Checkbox);
+	    
+	    
+	    JPanel sub_panel = new JPanel( new GridLayout( 2, 2 ) );
+	    setColors(sub_panel);
+	    sub_panel.add(prediction_time_hours_spinner);
+	    JLabel hours = new JLabel("horas");
+	    setColors(hours);
+	    hours.setBorder(BorderFactory.createEmptyBorder(0,10,0,0));
+	    sub_panel.add(hours);
+	    
+	    sub_panel.add(prediction_time_minutes_spinner);
+	    JLabel minutes = new JLabel("minutos");
+	    setColors(minutes);
+	    minutes.setBorder(BorderFactory.createEmptyBorder(0,10,0,0));
+	    sub_panel.add(minutes);
+	    
+	    menuPredictionPanel.add(sub_panel_1);
+	    menuPredictionPanel.add(sub_panel);
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	    
+	    tools_single_panel.add(mPanel);
+	    tools_single_panel.add(menuPredictionPanel);
+	    tools_single_panel.add(menuDistance);
+	    //tools_single_panel.add(distance_mode_panel);
+		
+		gbc.fill=GridBagConstraints.NORTH;
+        gbc.anchor=GridBagConstraints.NORTHEAST;
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        gbc.insets=new Insets(0,0,0,0);
+        menuPanel.add(show_hide_button, gbc);
+        gbc.insets=new Insets(10,0,0,0);
+        gbc.anchor=GridBagConstraints.NORTHWEST;
+        gbc.gridwidth = GridBagConstraints.REMAINDER;
+        //menuPanel.add(tools_single_panel, gbc);
+        
+		return menuPanel;
+	}
+	 	
+	public double getPredictionTimeInMinutes()
+	{
+		return Double.parseDouble(prediction_time_minutes_spinner.getValue().toString());
+	}
 	
 	public void centerMap(double lat, double lng) 
 	{
 		TLcdLonLatPoint mouse = new TLcdLonLatPoint(lat,lng);
+		/*if(prediction_time_point != null)
+		{
+			mouse =  new TLcdLonLatPoint(prediction_time_point.getX(),prediction_time_point.getY());
+		}*/
 		try {
 			//navigationUtil.center(mouse,new TLcdGeodeticReference());
 			navigationUtil.animatedCenter(mouse,new TLcdGeodeticReference());
+			//opacity(track_layer_points_tracks,1.0f);
 		} catch (TLcdOutOfBoundsException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		//north();
 	}
 	
-	public void north() {
-//		TLcdLonLatPoint north = new TLcdLonLatPoint(90,0);
-//		navigationUtil.rotateTo(north, 0, 0);
-		
+	public void north() {	
 		 if (getView().getViewXYZWorldTransformation() instanceof TLspViewXYZWorldTransformation3D) {
 		      TLspViewXYZWorldTransformation3D aTargetSFCT = (TLspViewXYZWorldTransformation3D) getView().getViewXYZWorldTransformation();
 		      double clampedYaw = 0;
@@ -610,71 +1153,61 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		navigationUtil.zoom(aFactor);
 	}
 	
+	float opacity = 1.0f;
 	public void opacity(int aLayerId, float newOpacity) {
-		/*int wheelRotation = e.getWheelRotation();
-      float alphaChange = 0.05f * (-wheelRotation);
-      float currentOpacity = aLayers.get(0).getLayerStyle().getOpacity();
-      float newOpacity = currentOpacity + alphaChange;*/
-	    //if (layer != null) {
-	    	System.out.println( "newOpacity" + newOpacity );
-	    	ILspLayer aLayer = getView().getLayer(aLayerId);
-	    	aLayer.setLayerStyle(aLayer.getLayerStyle().asBuilder().opacity(newOpacity).build());
-	    	
-	    	 TLspLayerStyle layerStyle = aLayer.getLayerStyle();
-	    	    aLayer.setLayerStyle(createNightBackgroundLayerStyle().asBuilder().opacity(layerStyle.getOpacity()-0.1f).build());
-	    	    ILcdModel model = aLayer.getModel();
-	    	    model.fireCollectedModelChanges();
-	    	
-	    	//fBackgroundLayer.setLayerStyle(fCurrentBackgroundStyle.asBuilder().opacity(layerStyle.getOpacity()).build());
-	    	//layer.setLayerStyle(createNightBackgroundLayerStyle());
-	    	
-//	    	ILcdModel model = layer.getModel();
-//	        try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
-//	          model.elementChanged(layer, ILcdModel.FIRE_LATER);
-//	        }
-//	        model.fireCollectedModelChanges();
-	   // }
+	    	    opacity = opacity - 0.1f;
+	    	    System.out.println( "newOpacity: " + opacity );	    
+	    	    TLspLayerStyle layerStyle = fTrackLayersStyles.get(aLayerId); 	
+	    	    TLspLayerStyle new_layerStyle = layerStyle.asBuilder().opacity(opacity).build();
+	    	    fTrackLayersStyles.replace(aLayerId, new_layerStyle );
+	    	    getView().getLayer(aLayerId).setLayerStyle(new_layerStyle);
+	    	    /*TLspRulerSegmentLabelContentStyle segmentContentStyle = (TLspRulerSegmentLabelContentStyle) fSegmentLabelContentStyle.getStyle();
+	            fSegmentLabelContentStyle.setStyle(segmentContentStyle.asBuilder().distanceFormat(distanceFormat).build());*/
 	}
-	
-	 private static TLspLayerStyle createNightBackgroundLayerStyle() {
-		//desaturate factor
-	    float dF = 0.85f;
-	    float desaturateMatrix[] = new float[]{
-	    		0.21f * dF + (1 - dF), 
-	    		0.72f * dF, 
-	    		0.07f * dF, 
-	    		0.0f, 
-	    		0.0f,
-	    		0.21f * dF, 
-	    		0.72f * dF + (1 - dF), 
-	    		0.07f * dF, 
-	    		0.0f, 
-	    		0.0f, 
-	    		0.21f * dF, 
-	    		0.72f * dF, 
-	    		0.07f * dF + (1 - dF), 
-	    		0.0f, 
-	    		0.0f,
-	            0.00f, 
-	            0.00f, 
-	            0.00f, 
-	            1.0f, 
-	            0.0f
-	    };
-	    return TLspLayerStyle.newBuilder()
-	                         .contrast(0.9f)
-	                         .brightness(0.65f)
-	                         .colorMatrix(desaturateMatrix)
-	                         .build();
-	  }
 	
 	public void updateCoords()
 	{
 		ILcdPoint mouse_position = fMouseEventHandler.getMousePosition();
 		String new_coords = "";
-		if(mouse_position != null && !ac.equals("") && !flir.equals("")) 
+		String ac_coords = "";
+		String mouse_coords = "";
+		String flir_coords = "";
+		if(mouse_position != null && ac_point != null && flir_point != null) 
 		{
-			new_coords = "A/C:" + ac  +  "             Mouse:" + df.format(mouse_position.getX()) +"," + df.format(mouse_position.getY()) + "                FLIR: "+ flir;
+		  //new_coords = "A/C:" + ac  +  "             Mouse:" + df.format(mouse_position.getX()) +"," + df.format(mouse_position.getY()) + "                FLIR: "+ flir;
+		  new_coords = "";
+			
+		  if(default_unit_location == unity_id_GD)
+		  {
+			  ac_coords = df.format(ac_point.getX()) + "," + df.format(ac_point.getY());
+			  mouse_coords = df.format(mouse_position.getX()) + "," + df.format(mouse_position.getY());
+			  flir_coords = df.format(flir_point.getX()) + "," + df.format(flir_point.getY());
+		  }
+		  else if(default_unit_location == unity_id_GMS)
+		  { 
+			  ac_coords = getFormatDMS(ac_point.getY(), ac_point.getX());
+			  mouse_coords = getFormatDMS(mouse_position.getY(), mouse_position.getX());
+			  flir_coords = getFormatDMS(flir_point.getY(), flir_point.getX());
+		  }
+		  else if(default_unit_location == unity_id_UTM)
+		  {
+			  ac_coords = getFormatUTM(ac_point.getY(), ac_point.getX());
+			  mouse_coords = getFormatUTM(mouse_position.getY(), mouse_position.getX());
+			  flir_coords = getFormatUTM(flir_point.getY(), flir_point.getX());
+		  }
+		  else if(default_unit_location == unity_id_MGRS)
+		  {
+			  ac_coords = getFormatMGRS(ac_point.getY(), ac_point.getX());
+			  mouse_coords = getFormatMGRS(mouse_position.getY(), mouse_position.getX());
+			  flir_coords = getFormatMGRS(flir_point.getY(), flir_point.getX());
+		  }
+			
+			new_coords = ( 
+					"A/C: " + ac_coords  +  
+					"             Mouse: " + mouse_coords + 
+					"             FLIR: " + flir_coords 
+			);
+			
 			coords.setText(new_coords);
 		}
 	}
@@ -705,10 +1238,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
 			flir_icon_name
 		);
-		System.out.println("Track icon: " + track_icon_path + " " + ( new File(track_icon_path).exists() ? "Correct" : "Error" ));
-		System.out.println("Marck icon: " + marck_icon_path + " " + ( new File(marck_icon_path).exists() ? "Correct" : "Error" ));
-		System.out.println("AC icon: " + ac_icon_path + " " + ( new File(ac_icon_path).exists() ? "Correct" : "Error" ));
-		System.out.println("FLIR icon: " + flir_icon_path + " " + ( new File(flir_icon_path).exists() ? "Correct" : "Error" ));
+		System.out.println("Track icon " + ( new File(track_icon_path).exists() ? "Correct: " : "Error: " ) + track_icon_path);
+		System.out.println("Marck icon " + ( new File(track_icon_path).exists() ? "Correct: " : "Error: " ) + marck_icon_path);
+		System.out.println("AC icon " + ( new File(track_icon_path).exists() ? "Correct: " : "Error: " ) +  ac_icon_path);
+		System.out.println("FLIR icon "+ ( new File(track_icon_path).exists() ? "Correct: " : "Error: " ) + flir_icon_path);
 	}
 	
 	public void updateAllIconStyles()
@@ -749,22 +1282,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		}
 	}
 	
-	/*JPanel panel_icon = new JPanel();
-	 Container overlay = getView().getOverlayComponent();
-	 TLcdOverlayLayout layout = (TLcdOverlayLayout) overlay.getLayout();
-	 JLabel img = new JLabel(" "); 
-	 ImageIcon image = new ImageIcon(track_icon_path);
-	 panel_icon.add(img);
-	 img.setIcon(image); 
-	 img.setSize(100,100); 
-	 img.setLocation(0,0); 
-	 img.setVisible(true); 
-	 overlay.add(panel_icon);
-	 layout.putConstraint(panel_icon, TLcdOverlayLayout.Location.WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);*/
-	//addTrack(track_layer_points_tracks, 98243, -100, 22, 10, "ada", 0);
-	
-	List<String> files_to_delete = new ArrayList<String>();
-	public void delete_files() {
+	public void delete_files() 
+	{
 		if(files_to_delete.size() > 0)
 		{
 			for (String file : files_to_delete) {
@@ -808,11 +1327,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	public void updateMarcksIconStyle() 
 	{
 		//Marks
-		/*removeTrackLayer(track_layer_points_marks);
-		System.out.println("updateMarcksIconStyle "+marck_icon_path);
-		layerFactory.setIconPath(marck_icon_path);
-		track_layer_points_marks = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");*/
-		
 		int id_layer = track_layer_points_marks;
 		String icon_path = marck_icon_path;
 		
@@ -843,11 +1357,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	public void updateAcIconStyle() 
 	{
 		//AC
-		/*removeTrackLayer(track_layer_ac_id);
-		System.out.println("updateAcIconStyle "+ac_icon_path);
-		layerFactory.setIconPath(ac_icon_path);
-		track_layer_ac_id = addTrackLayerPointWithIcon("AC layer", "EPSG:4326");*/
-		
 		int id_layer = track_layer_ac_id;
 		String icon_path = ac_icon_path;
 		
@@ -877,13 +1386,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	}
 	
 	public void updateFlirIconStyle() 
-	{
-		//FLIR
-		/*removeTrackLayer(track_layer_flir_id);
-		System.out.println("updateFlirIconStyle "+flir_icon_path);
-		layerFactory.setIconPath(flir_icon_path);
-		track_layer_flir_id = addTrackLayerPointWithIcon("Flir layer", "EPSG:4326");*/
-		
+	{	
 		int id_layer = track_layer_flir_id;
 		String icon_path = flir_icon_path;
 		
@@ -982,6 +1485,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		layerFactory.setLineColor("#2C4DC9");
 		layerFactory.setHaloColor("#ffffff");
 		rangos_armas_layer_id = addTrackLayerLine("Rangos de arma", "EPSG:4326");
+		layerFactory.setDefautlsColor();
+		//Predicted layer
+		layerFactory.setTextColor("#211f01");
+		layerFactory.setLineColor("#8e3004");
+		layerFactory.setHaloColor("#ffffff");
+		layerFactory.setIconPath(track_icon_path);
+		track_layer_points_tracks_predicted = addTrackLayerPredicted("Traks layer Predicted", "EPSG:4326");
 		layerFactory.setDefautlsColor();
 		paintPoints();
 	}
@@ -1208,10 +1718,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       return x*Math.PI/180;
   }
   
-  boolean create_line_ac = false;
-  boolean create_line_flir = false;
-  boolean create_line_select_track = false;
-  
   public void paintDistanceLines()
   {
 	  if(track_layer_distance != 0 && fTrackLayers.size() > 0)
@@ -1259,15 +1765,23 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			  
 			  if(select_track && isSelectAnyElement) 
 			  {
-				if(create_line_select_track == false) 
-				{
-					addLine(track_layer_distance, track_distance_select_track_id, select_track_point, mouse_position, "Distance Select Track", 0);
-					create_line_select_track = true;
-				}
-				else  
-				{
-					updateLine(track_layer_distance, track_distance_select_track_id, select_track_point, mouse_position, 0);
-				}
+				  double[] element_location = getElementLocation(select_track_point_id);
+	        	  if(element_location.length == 3)
+	        	  {
+		        	  double x = element_location[0];
+		        	  double y = element_location[1];
+		        	  double z = element_location[2];
+		        	  ILcdPoint select_track_point = new TLcdLonLatHeightPoint(x,y,z);
+						if(create_line_select_track == false) 
+						{
+							addLine(track_layer_distance, track_distance_select_track_id, select_track_point, mouse_position, "Distance Select Track", 0);
+							create_line_select_track = true;
+						}
+						else  
+						{
+							updateLine(track_layer_distance, track_distance_select_track_id, select_track_point, mouse_position, 0);
+						}
+	          	  }  
 			  }
 			  else 
 			  {
@@ -1311,11 +1825,11 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	 if(start_point != null && end_point != null)
 	 {
 		 double R = 6378.137; // earth's mean radius in km
-		 double dLat  = rad(end_point.getX() - start_point.getX());
-		 double dLong = rad(end_point.getY() - start_point.getY());
+		 double dLat  = rad(end_point.getY() - start_point.getY());
+		 double dLong = rad(end_point.getX() - start_point.getX());
 		
 		 double a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-		          Math.cos(rad(start_point.getX())) * Math.cos(rad(end_point.getX())) * Math.sin(dLong/2) * Math.sin(dLong/2);
+		          Math.cos(rad(start_point.getY())) * Math.cos(rad(end_point.getY())) * Math.sin(dLong/2) * Math.sin(dLong/2);
 		 double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 		 double distance = R * c; //in km.
 		 //return distance;
@@ -1325,9 +1839,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   }
   
   public void startDistanceMode() {
-	System.out.println("startDistanceMode");
+	System.out.println("startDistanceMode *");
 	defaul_controller = getView().getController();
-	distance_panel.setVisible(true);
+	//distance_mode_panel.setVisible(true);
+	tools_single_panel.add(distance_mode_panel);
 	distance_mode = true;
 	getView().setController(fTerrainRulerController);
 	LspDataUtil.instance().grid().addToView(getView());
@@ -1347,13 +1862,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 
   }
   
-  ILspController defaul_controller;
-  
   public void stopDistanceMode() {
 	  if(distance_mode)
 	  {
-		  System.out.println("stopDistanceMode");
-		  distance_panel.setVisible(false);
+		  System.out.println("stopDistanceMode *");
+		  //distance_mode_panel.setVisible(false);
+		  tools_single_panel.remove(distance_mode_panel);
 		  distance_mode = false;
 		  
 		  if(load_file_med == false)
@@ -1409,6 +1923,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  return addTrackLayer(aLayerName, aEPSG, 5);
   }
   
+  public int addTrackLayerPredicted(String aLayerName, String aEPSG) {
+	  return addTrackLayer(aLayerName, aEPSG, 7);
+  }
+  
   public int addTrackLayer(String aLayerName, String aEPSG, int type_layer) {
     try {
     	ILcdModelReference reference = new TLcdEPSGReferenceParser().parseModelReference(aEPSG);
@@ -1458,6 +1976,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			Collection<ILspLayer> layers_no_select_polygon = factory.createLayers(model_no_select_polygon);
 			layer = layers_no_select_polygon.iterator().next();
 			break;	
+		case 7:
+			factory = new TLspCompositeLayerFactory(layerFactory);
+			TLcdVectorModel model_predited = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor(aLayerName, "Predicted", "Predicted"));
+			Collection<ILspLayer> layers_predicted = factory.createLayers(model_predited);
+			layer = layers_predicted.iterator().next();
+			break;
 		default:
 			ILcdModel model = new TLcd2DBoundsIndexedModel(reference, new TLcdModelDescriptor(aLayerName, "Tracks", aLayerName));
 		    layer = TLspShapeLayerBuilder.newBuilder()
@@ -1467,6 +1991,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	  }
       int layerId = fAtomicInteger.incrementAndGet();
       fTrackLayers.put(layerId, layer);
+      fTrackLayersStyles.put(layerId, layer.getLayerStyle());
       
       // View operations need to be executed on the paint thread.
       getView().getGLDrawable().invokeLater((gl) -> {
@@ -1482,7 +2007,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
         else
         {
         	//System.out.println("nothing select");
-        	//select_track_point = null;
+        	//select_track_point_id = 0;
         	//isSelectAnyElement = false;
         }
       });
@@ -1503,6 +2028,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
     ILspLayer layer = fTrackLayers.get(aLayerId);
     if (layer != null) {
       fTrackLayers.remove(aLayerId);
+      fTrackLayersStyles.remove(aLayerId);
       // View operations need to be executed on the paint thread.
       getView().getGLDrawable().invokeLater((gl) -> {
         getView().removeLayer(layer);
@@ -1510,6 +2036,84 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
       });
     }
   }
+  
+  public void addElementTrack(int id, double lon, double lat, double heigth) 
+  {
+	  addElementTrack(id, lon, lat, heigth, "Track");
+  }
+  
+  public void addElementPolygon(int id, double lon, double lat, double heigth) 
+  {
+	  addElementTrack(id, lon, lat, heigth, "Polygon");
+  }
+  
+  public void addElementPolyline(int id, double lon, double lat, double heigth) 
+  {
+	  addElementTrack(id, lon, lat, heigth, "Polyline");
+  }
+  
+  public void addElementLine(int id, double lon, double lat, double heigth) 
+  {
+	  addElementTrack(id, lon, lat, heigth, "Line");
+  }
+  
+  public void addElementCircle(int id, double lon, double lat, double heigth) 
+  {
+	  addElementTrack(id, lon, lat, heigth, "Circle");
+  }
+  
+  public void addElementTrack(int id, double lon, double lat, double heigth, String type) 
+  {
+	  fElementsTracks.put(
+			  id, 
+			  new HashMap<String,Object>() {
+				  {
+					  	put("type", type);
+						put("lon", lon);
+						put("lat", lat);
+						put("heigth", heigth);
+			  	  }
+			  }
+	  );
+  }
+  
+  public void updateElement(int id, double lon, double lat, double heigth) 
+  {
+	  if(fElementsTracks.containsKey(id))
+	  {
+		  fElementsTracks.get(id).replace("lon", lon);
+		  fElementsTracks.get(id).replace("lat", lat);
+		  fElementsTracks.get(id).replace("heigth", heigth);
+	  }
+  }
+  
+  public static Map<String, Object> getElement(int id) 
+  {
+	  if(fElementsTracks.containsKey(id))
+	  {
+		  return fElementsTracks.get(id);
+	  }
+	  return null;
+  }
+  
+  public static double[] getElementLocation(int id) 
+  {
+	  Map<String, Object> element = getElement(id);
+	  double[] location =  { 0.0, 0.0, 0.0 };
+	  location[0] = element.containsKey("lon") ? (double)element.get("lon") : 0.0 ;
+	  location[1] = element.containsKey("lat") ? (double)element.get("lat") : 0.0 ;
+	  location[2] = element.containsKey("heigth") ? (double)element.get("heigth") : 0.0 ;
+	  return location;
+  }
+  
+  public void removeElementTrack(int id) 
+  {
+	  if(fElementsTracks.containsKey(id))
+	  {
+		  fElementsTracks.remove(id);
+	  }
+  }
+  
   
   /**
    * Adds a new track with the specified properties to the specified track layer.
@@ -1587,6 +2191,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
         	track.setValue(TrackDataTypes.CATEGORY, category);
         }
         model.addElement(track, ILcdModel.FIRE_LATER);
+        addElementTrack(aTrackId,aX,aY,aZ);
       }
       model.fireCollectedModelChanges();
     }
@@ -1612,6 +2217,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           ((ILcd3DEditablePoint) track.getValue(TrackDataTypes.LOCATION)).move3D(aX, aY, aZ);
           //track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
           model.elementChanged(track, ILcdModel.FIRE_LATER);
+          updateElement(aTrackId,aX,aY,aZ);
         }
         model.fireCollectedModelChanges();
       }
@@ -1644,6 +2250,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      ILcdModel model = layer.getModel();
 	      try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
 	        TLcdDataObject track = new TLcdDataObject(PolygonDataTypes.TRACK_PLAN_DATA_TYPE);
+	        ILcdPoint first_point = polygon.getPoint(0);
 	        ILcd3DEditablePointList location;
 	        if (model.getModelReference() instanceof ILcdGeodeticReference) {
 	          //location = new TLcdLonLatHeightPolygon(generate3DRandomPolygon()) {
@@ -1655,7 +2262,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 					float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
 					TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
 					return getFormattedTrackLocation(polygon_point)*/
-					return getFormattedTrackLocation(this);
+					return getFormattedTrackLocation(first_point);
 	            }
 	          };
 	        } else {
@@ -1668,7 +2275,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 					float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
 					TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
 					return getFormattedTrackLocation(polygon_point);*/
-					return getFormattedTrackLocation(this);
+					return getFormattedTrackLocation(first_point);
 	            }
 	          };
 	        }
@@ -1682,6 +2289,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        track.setValue(PolygonDataTypes.NAME, name);
 	        track.setValue(PolygonDataTypes.DESCRIPTION, description);
 	        model.addElement(track, ILcdModel.FIRE_LATER);
+	        addElementPolygon(aTrackId, first_point.getX(), first_point.getY(), first_point.getZ());
 	        
 	      }
 	      catch(Exception e)
@@ -1709,7 +2317,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
         try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
           //((ILcd3DEditablePoint) track.getValue(PolygonDataTypes.LOCATION)).move3D(aX, aY, aZ);
         	//((ILcd3DEditablePointList) track.getValue(PolygonDataTypes.LOCATION)).getPointCount()
-			ILcd3DEditablePointList location;
+        	ILcdPoint first_point = polygon.getPointCount() > 0 ? polygon.getPoint(0): null;
+        	ILcd3DEditablePointList location;
 			if (model.getModelReference() instanceof ILcdGeodeticReference) {
 			  location = new TLcdLonLatHeightPolygon(polygon) {
 			    @Override
@@ -1719,7 +2328,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 					float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
 					TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
 					return getFormattedTrackLocation(polygon_point);*/
-			    	return getFormattedTrackLocation(this);
+			    	return getFormattedTrackLocation(first_point);
 			    }
 			  };
 			} else {
@@ -1731,7 +2340,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 					float z = data.containsKey("hgt") ? (float)data.get("hgt") : 0.0f;
 					TLcdLonLatHeightPoint  polygon_point = new TLcdLonLatHeightPoint(x,y,z);
 					return getFormattedTrackLocation(polygon_point);*/
-					return getFormattedTrackLocation(this);
+					return getFormattedTrackLocation(first_point);
 			    }
 			  };
 			}
@@ -1740,6 +2349,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           //track.setValue(PolygonDataTypes.NAME, "Nombre");
 	      //track.setValue(PolygonDataTypes.DESCRIPTION, "Descripción");
           model.elementChanged(track, ILcdModel.FIRE_LATER);
+          if(first_point != null)
+          {
+          updateElement(aTrackId, first_point.getX(), first_point.getY(), first_point.getZ());
+          }
         }
         model.fireCollectedModelChanges();
       }
@@ -1760,13 +2373,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      ILcdModel model = layer.getModel();
 	      try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
 	        TLcdDataObject track = new TLcdDataObject(PolygonDataTypes.TRACK_PLAN_DATA_TYPE);
+	        ILcdPoint first_point = polyline.getPoint(0);
 	        ILcd3DEditablePointList location;
 	        if (model.getModelReference() instanceof ILcdGeodeticReference) {
 	          //location = new TLcdLonLatHeightPolygon(generate3DRandomPolygon()) {
 	          location = new TLcdLonLatHeightPolyline(polyline) {
 	            @Override
 	            public String toString() {
-	              return getFormattedTrackLocation(this);
+	              return getFormattedTrackLocation(first_point);
 	            }
 	          };
 	        } else {
@@ -1774,7 +2388,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	           location = new TLcdXYZPolyline(polyline) {
 	            @Override
 	            public String toString() {
-	              return getFormattedTrackLocation(this);
+	              return getFormattedTrackLocation(first_point);
 	            }
 	          };
 	        }
@@ -1788,6 +2402,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	        track.setValue(PolygonDataTypes.NAME, name);
 	        track.setValue(PolygonDataTypes.DESCRIPTION, description);
 	        model.addElement(track, ILcdModel.FIRE_LATER);
+	        addElementPolyline(aTrackId, first_point.getX(), first_point.getY(), first_point.getZ());
 	        
 	      }
 	      catch(Exception e)
@@ -1815,19 +2430,20 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
         try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
           //((ILcd3DEditablePoint) track.getValue(PolygonDataTypes.LOCATION)).move3D(aX, aY, aZ);
         	//((ILcd3DEditablePointList) track.getValue(PolygonDataTypes.LOCATION)).getPointCount()
+        	ILcdPoint first_point = polyline.getPoint(0);
 			ILcd3DEditablePointList location;
 			if (model.getModelReference() instanceof ILcdGeodeticReference) {
 			  location = new TLcdLonLatHeightPolyline(polyline) {
 			    @Override
 			    public String toString() {
-			      return getFormattedTrackLocation(this);
+			      return getFormattedTrackLocation(first_point);
 			    }
 			  };
 			} else {
 			   location = new TLcdXYZPolyline(polyline) {
 			    @Override
 			    public String toString() {
-			      return getFormattedTrackLocation(this);
+			      return getFormattedTrackLocation(first_point);
 			    }
 			  };
 			}
@@ -1836,6 +2452,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
           //track.setValue(PolygonDataTypes.NAME, "Nombre");
 	      //track.setValue(PolygonDataTypes.DESCRIPTION, "Descripción");
           model.elementChanged(track, ILcdModel.FIRE_LATER);
+          updateElement(aTrackId, first_point.getX(), first_point.getY(), first_point.getZ());
         }
         model.fireCollectedModelChanges();
       }
@@ -1868,13 +2485,17 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	            }
 	          };
 	        }
-	        String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " m";
+	        double distance_meters = getDistanceTwoPoints(start_point, end_point);
+	        double distance_select_unity = meterToSelectUnityConvert(distance_meters);
+	        String abrev = getAbbreviationOfSelectUnity();
+	        String distance_label = df_line.format(distance_select_unity ) + " " + abrev;
 	        track.setValue(LineDataTypes.ID, aTrackId);
 	        track.setValue(LineDataTypes.LOCATION, location);
 	        //track.setValue(PolygonDataTypes.TIMESTAMP, aTimeStamp);
 	        track.setValue(LineDataTypes.CALLSIGN, aCallSign);
 	        track.setValue(LineDataTypes.LABEL, distance_label);
 	        model.addElement(track, ILcdModel.FIRE_LATER);
+	        addElementLine(aTrackId, start_point.getX(), start_point.getY(), start_point.getZ());
 	        
 	      }
 	      catch(Exception e)
@@ -1885,6 +2506,40 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	      model.fireCollectedModelChanges();
 	    }
   	}
+  
+  public double meterToSelectUnityConvert(double value_in_meters) {
+	  //default_unit_longitude;
+	  Map<String, Object> select_unity_map = units_longitude.get(default_unit_longitude);
+	  String operation = select_unity_map.containsKey("operation_meters_to") ? select_unity_map.get("operation_meters_to").toString() : "";
+	  double value_to_parse = select_unity_map.containsKey("value_meters_to") ? Double.parseDouble(select_unity_map.get("value_meters_to").toString()) : 0.0;
+	  double value_in_select_unity = 0.0;
+	  switch (operation) {
+		case "*":
+			value_in_select_unity = value_in_meters * value_to_parse;
+			break;
+		case "/":
+			value_in_select_unity = value_in_meters / value_to_parse;
+			break;
+		default:
+			break;
+		}
+	  return value_in_select_unity;
+  }
+
+  public String getAbbreviationOfSelectUnity() {
+	  Map<String, Object> select_unity_map = units_longitude.get(default_unit_longitude);
+	  return select_unity_map.containsKey("abbreviation") ? select_unity_map.get("abbreviation").toString() : "";
+  }
+  
+  public String getAbbreviationOfUnity(String unit_longitude) {
+	  Map<String, Object> unity_map = units_longitude.get(unit_longitude);
+	  return unity_map.containsKey("abbreviation") ? unity_map.get("abbreviation").toString() : "";
+  }
+  
+  public String getNameOfUnity(String unit_longitude) {
+	  Map<String, Object> unity_map = units_longitude.get(unit_longitude);
+	  return unity_map.containsKey("name") ? unity_map.get("name").toString() : "";
+  }
   
   public void updateLine(int aLayerId, int aTrackId, ILcdPoint start_point, ILcdPoint end_point, long aTimeStamp){
     ILspLayer layer = fTrackLayers.get(aLayerId);
@@ -1913,10 +2568,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 			    }
 			  };
 			}
-			String distance_label = df_line.format(getDistanceTwoPoints(start_point, end_point)) + " m";
+			double distance_meters = getDistanceTwoPoints(start_point, end_point);
+	        double distance_select_unity = meterToSelectUnityConvert(distance_meters);
+	        String abrev = getAbbreviationOfSelectUnity();
+	        String distance_label = df_line.format(distance_select_unity ) + " " + abrev;
 			track.setValue(LineDataTypes.LOCATION, location);
 			track.setValue(LineDataTypes.LABEL, distance_label);
 			model.elementChanged(track, ILcdModel.FIRE_LATER);
+			updateElement(aTrackId, start_point.getX(), start_point.getY(), start_point.getZ());
         }
         model.fireCollectedModelChanges();
       }
@@ -1953,12 +2612,18 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	            }
 	          };
 	        }
+	        
+	        double radius_select_unity = meterToSelectUnityConvert(radius);
+	        String abrev = getAbbreviationOfSelectUnity();
+	        String radius_label = df_line.format(radius_select_unity ) + " " + abrev;
+
 	        track.setValue(LineDataTypes.ID, aTrackId);
 	        track.setValue(LineDataTypes.LOCATION, location);
 	        //track.setValue(PolygonDataTypes.TIMESTAMP, aTimeStamp);
 	        track.setValue(LineDataTypes.CALLSIGN, aCallSign);
-	        track.setValue(LineDataTypes.LABEL, radius / 1000 + " km");
+	        track.setValue(LineDataTypes.LABEL, radius_label);
 	        model.addElement(track, ILcdModel.FIRE_LATER);
+	        addElementCircle(aTrackId, center_point.getX(), center_point.getY(), center_point.getZ());
 	        
 	      }
 	      catch(Exception e)
@@ -2003,9 +2668,15 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
   			    }
   			  };
   			}
+  			
+  			double radius_select_unity = meterToSelectUnityConvert(radius);
+ 	        String abrev = getAbbreviationOfSelectUnity();
+ 	        String radius_label = df_line.format(radius_select_unity ) + " " + abrev;
+ 	        
   			track.setValue(LineDataTypes.LOCATION, location);
-  			track.setValue(LineDataTypes.LABEL, radius / 1000 + " km");
+  			track.setValue(LineDataTypes.LABEL,radius_label);
   			model.elementChanged(track, ILcdModel.FIRE_LATER);
+  			updateElement(aTrackId, center_point.getX(), center_point.getY(), center_point.getZ());
           }
           model.fireCollectedModelChanges();
         }
@@ -2021,9 +2692,76 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		// TODO Auto-generated method stub
 		return null;
 	}
-
+  
+  public String getFormatDMS(double lat, double lng) {
+	  return (
+			  convert.decimalLongitudeToDMS(lng) +
+			  "," +
+			  convert.decimalLatitudeToDMS(lat)
+	  );
+  }
+	
+  public String getFormatDMS(double lat, double lng, double height) {
+	  return (
+			  "Lon: " + convert.decimalLongitudeToDMS(lng) + 
+			  " Lat: " + convert.decimalLatitudeToDMS(lat) + 
+			  " Height: " + height
+	  );
+  }
+  
+  public String getFormatUTM(double lat, double lng) {
+	  return (
+			  convert.latLon2UTM(lat, lng)
+	  );
+  }
+  
+  public String getFormatUTM(double lat, double lng, double height) {
+	  return (
+			  "" + convert.latLon2UTM(lat, lng) + 
+			  " Height: " + height
+	  );
+  }
+  
+  public String getFormatMGRS(double lat, double lng) {
+	  return (
+			  convert.latLon2MGRUTM(lat, lng)
+	  );
+  }
+  
+  public String getFormatMGRS(double lat, double lng, double height) {
+	  return (
+			  "" + convert.latLon2MGRUTM(lat, lng) + 
+			  " Height: " + height
+	  );
+  }
+	
   private String getFormattedTrackLocation(ILcdPoint aTrack) {
-    return String.format("Lon: %.3f Lat: %.3f Height: %.3f", aTrack.getX(), aTrack.getY(), aTrack.getZ());
+	  
+	  /*System.out.println( aTrack.getX());
+	  String gms = convertLongitudeGradeMinutesSeconds( aTrack.getX());
+	  System.out.println(gms);
+	  double gd = convertDecimalCoord(gms);
+	  System.out.println(gd);
+	  System.out.println("***************");*/
+
+
+	  if(default_unit_location == unity_id_GD)
+	  {
+		  return String.format("Lon: %.3f Lat: %.3f Height: %.3f", aTrack.getX(), aTrack.getY(), aTrack.getZ());
+	  }
+	  else if(default_unit_location == unity_id_GMS)
+	  {
+		  return String.format("%s",getFormatDMS(aTrack.getY(), aTrack.getX(), aTrack.getZ()));
+	  }
+	  else if(default_unit_location == unity_id_UTM)
+	  {
+		  return String.format("%s",getFormatUTM(aTrack.getY(), aTrack.getX(), aTrack.getZ()));
+	  }
+	  else if(default_unit_location == unity_id_MGRS)
+	  {
+		  return String.format("%s",getFormatMGRS(aTrack.getY(), aTrack.getX(), aTrack.getZ()));
+	  }
+	  return String.format("Lon: %.3f Lat: %.3f Height: %.3f", aTrack.getX(), aTrack.getY(), aTrack.getZ());
   }  
   
   /**
@@ -2040,6 +2778,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
         ILcdModel model = layer.getModel();
         try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
           model.removeElement(track, ILcdModel.FIRE_LATER);
+          removeElementTrack(aTrackId);
         }
         model.fireCollectedModelChanges();
       }
@@ -2085,7 +2824,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
    * @param aNativePeer the pointer of the native object which should receive the selected object.
    * @param aDataObject the data object
    */
-  public native void objectSelected(long aNativePeer, Object aDataObject);
 
   private static class BalloonContentProvider implements ILcdBalloonContentProvider {
 
@@ -2122,8 +2860,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	          		}
 	          		break;
 	          	case "Área":
-	          		//var_location = PolygonDataTypes.LOCATION;
-	          		//var_id = PolygonDataTypes.ID;
+	          		var_location = PolygonDataTypes.LOCATION;
+	          		var_id = PolygonDataTypes.ID;
 	          		break;
 	          	case "Línea":
 	          		var_location = LineDataTypes.LOCATION;
@@ -2132,24 +2870,11 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		        default:
 		        	break;
 	          }
-	          select_track_point = null;
+	          select_track_point_id = 0;
 	          isSelectAnyElement = false;
 	          if(!var_id.equals("") && !var_location.equals(""))
 	          {
-	        	  //"Lon: -94.720 Lat: 20.280 Height: 0.000"
-	        	  String location = ((ILcdDataObject) object).getValue(var_location).toString();
-	        	  //int id = Integer.parseInt(((ILcdDataObject) object).getValue(var_id).toString());
-	        	  
-	        	  String separate_caracter = ";";
-	        	  location = location.replaceAll("Lon: ", separate_caracter);
-	        	  location = location.replaceAll("Lat: ", separate_caracter);
-	        	  location = location.replaceAll("Height: ", separate_caracter);
-	        	  location = location.startsWith(separate_caracter) ? location.replaceFirst(separate_caracter, ""): location;
-	        	  String split_location[] = location.split(separate_caracter);
-	        	  float x = Float.parseFloat(split_location[0]);
-	        	  float y = Float.parseFloat(split_location[1]);
-	        	  float z = Float.parseFloat(split_location[2]);
-	        	  select_track_point = new TLcdLonLatHeightPoint(x,y,z);
+	        	  select_track_point_id = Integer.parseInt(((ILcdDataObject) object).getValue(var_id).toString());
 	        	  isSelectAnyElement = true;
 	          }
 
@@ -2212,8 +2937,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	              Map<String,Object> data = new HashMap<>();
 	              data.put("name", ((JSONObject)tracks_list.get(t)).get("nombre").toString());
 	              data.put("description", ((JSONObject)tracks_list.get(t)).get("descripcion").toString());
-	              data.put("lat", point_x);
-	              data.put("lng", point_y);
+	              data.put("lat", point_y);
+	              data.put("lng", point_x);
 	              data.put("hgt", point_z);
 	
 	              int type = (int)tracks_list.get(t).get("tipo_dato");
@@ -2231,13 +2956,17 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	            	  );
 	            	  
 	            	  JSONObject datos_json = (JSONObject) ((JSONObject)tracks_list.get(t)).get("datos_json");
+	            	  double course = 0.0;
 	            	  if(datos_json.containsKey("rumbo"))
 	            	  {
 	            		  data.put("course", datos_json.get("rumbo").toString());
+	            		  course = Double.parseDouble(datos_json.get("rumbo").toString());
 	            	  }
+	            	  double speed = 0.0;
 	            	  if(datos_json.containsKey("velocidad"))
 	            	  {
 	            		  data.put("speed", datos_json.get("velocidad").toString());
+	            		  speed = Double.parseDouble(datos_json.get("velocidad").toString());
 	            	  }
 	            	  if(datos_json.containsKey("categoria"))
 	            	  {
@@ -2250,7 +2979,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	            	  }
 	            	  
 	            	  ILcdDataObject track = getTrack(layer_type, (int) tracks_list.get(t).get("ID"));
-	                  if (track == null) {
+	                  if (track == null) 
+	                  {
 	                  	addTrack( layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, point_z, "TRACK", 0, data);
 	                  }
 	              	  else
@@ -2258,28 +2988,119 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 	              		updateTrack(layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, point_z, 0);
 	              	  }
 	                  
-	                    //Rango arma
-	                    ILspLayer layer = fTrackLayers.get(rangos_armas_layer_id);
-            		    if (layer != null) 
-            		    {
-            		    	ILcdDataObject track_ra = getTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"));
-	              		    if (track_ra == null) {
-	              		    	if(rango_arma > 0.0) 
-	              		    	{
-	              		    		addCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"), point_x, point_y, 1000, "Rango Arma Track", 0, rango_arma);
-	              		    	}
-	              		    }
-	              		    else {
-	              		    	if(rango_arma > 0.0) 
-	    	              		{
-	              		    		updateCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"), point_x, point_y, 1000, 0, rango_arma);	
-	    	              		}
-	    	              		else 
-	    	              		{
-	    	              			removeTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"));
-	    	              		}
-	              		    }
-            		    }
+	                //Prediccion de ubicación de todos los tracks
+	                if(prediction_all_tracks_mode && prediction_select_mode == false && type == 1 ) 
+              		{
+	                	 Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_y, point_x, getPredictionTimeInMinutes(), course, speed);
+	                	  /*System.out.println(
+	                	    "prediction_all_tracks_mode(" + point_y + "," + point_x + ")" +
+	                	    "->" + 
+	                	    "(" + predicted_coords.get("latidude").toString() + "," + predicted_coords.get("longitude").toString() + ")"
+	                	  );*/
+	                	  
+	                	  prediction_time_point = new TLcdLonLatHeightPoint(
+	            			  Double.parseDouble(predicted_coords.get("longitude").toString()),
+	            			  Double.parseDouble(predicted_coords.get("latidude").toString()),
+	            			  point_z
+	                	  );
+	                	  
+	                	  if(prediction_tracks_painted.contains((int) tracks_list.get(t).get("ID")) == false)
+	                	  {
+	                		  addTrack( 
+		                	    track_layer_points_tracks_predicted, 
+		                	    (int) tracks_list.get(t).get("ID"), 
+		                	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
+		                	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
+		                	    point_z, 
+		                	    "TRACK", 
+		                	    0, 
+		                	    data
+		                	  );
+	                		  addLine(track_layer_points_tracks_predicted, Integer.parseInt(tracks_list.get(t).get("ID").toString() + "" + tracks_list.get(t).get("ID").toString() ), new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, "Distance Prediction", 0);
+	                		  prediction_tracks_painted.add((int) tracks_list.get(t).get("ID"));
+	                	  }
+	                	  else
+	                	  {
+	                		  updateTrack( 
+	                      	    track_layer_points_tracks_predicted, 
+	                      	    (int) tracks_list.get(t).get("ID"), 
+	                      	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
+	                      	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
+	                      	    point_z, 
+	                      	    0
+	                      	  ); 
+	                		  updateLine(track_layer_points_tracks_predicted, Integer.parseInt(tracks_list.get(t).get("ID").toString() + "" + tracks_list.get(t).get("ID").toString() ), new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, 0);
+	                	  }
+              		}  
+	                //Prediccion de ubicación de un track seleccionado
+	                else if(prediction_select_mode && prediction_all_tracks_mode == false && ((int)tracks_list.get(t).get("ID")) == select_track_point_id && type == 1) 
+                  	{
+                	  Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_y, point_x, getPredictionTimeInMinutes(), course, speed);
+                	  /*System.out.println(
+                	    "prediction_select_mode(" + point_y + "," + point_x + ")" +
+                	    "->" + 
+                	    "(" + predicted_coords.get("latidude").toString() + "," + predicted_coords.get("longitude").toString() + ")"
+                	  );*/
+                	  
+                	  prediction_time_point = new TLcdLonLatHeightPoint(
+            			  Double.parseDouble(predicted_coords.get("longitude").toString()),
+            			  Double.parseDouble(predicted_coords.get("latidude").toString()),
+            			  point_z
+                	  );
+                	  
+                	  if(prediction_point_create == false)
+                	  {
+                		  addTrack( 
+	                	    track_layer_points_tracks_predicted, 
+	                	    -255, 
+	                	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
+	                	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
+	                	    point_z, 
+	                	    "TRACK", 
+	                	    0, 
+	                	    data
+	                	  );
+                		  addLine(track_layer_points_tracks_predicted, -256, new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, "Distance Prediction", 0);
+                		  prediction_point_create = true;
+                	  }
+                	  else
+                	  {
+                		  updateTrack( 
+                      	    track_layer_points_tracks_predicted, 
+                      	    -255, 
+                      	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
+                      	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
+                      	    point_z, 
+                      	    0
+                      	  ); 
+                		  updateLine(track_layer_points_tracks_predicted, -256, new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, 0);
+                	  }
+                  	}
+              		/////////
+	                  
+	                  
+					  //Rango arma
+					  ILspLayer layer = fTrackLayers.get(rangos_armas_layer_id);
+					  if (layer != null) 
+					  {
+						ILcdDataObject track_ra = getTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"));
+						if (track_ra == null) {
+							if(rango_arma > 0.0) 
+							{
+								addCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"), point_x, point_y, 1000, "Rango Arma Track", 0, rango_arma);
+							}
+						}
+						else {
+							if(rango_arma > 0.0) 
+							{
+								updateCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"), point_x, point_y, 1000, 0, rango_arma);	
+							}
+							else 
+							{
+							removeTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"));
+							}
+						}
+					  }
             		    
 	                  if(type==1)
 	                  {
@@ -2308,7 +3129,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy {
 		            			  track_points.insert3DPoint(ep, new TLcdXYZPoint(lat, lng, 10000));
 		            		  }
 		            		  //Visión FLIR
-		            		  else if(type == 4)
+		            		  else if(type == 4) 
 		            		  {
 		            			  track_points.insert3DPoint(ep, new TLcdXYZPoint(lat, lng, point_z));
 		            		  }

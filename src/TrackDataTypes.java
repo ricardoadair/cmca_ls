@@ -23,6 +23,9 @@ import com.luciad.util.TLcdHasGeometryAnnotation;
 
     static final String ID = "id";
     static final String LOCATION = "Localización";
+    /*static final String LON = "Longitud";
+    static final String LAT = "Latitud";
+    static final String HEIGHT = "Altitud";*/
     //static final String TIMESTAMP = "timestamp";
     static final String CALLSIGN = "callSign";
     static final String NAME = "Nombre";
@@ -53,6 +56,9 @@ import com.luciad.util.TLcdHasGeometryAnnotation;
       TLcdDataTypeBuilder trackBuilder = builder.typeBuilder(TRACK_TYPE);
       trackBuilder.addProperty(ID, TLcdCoreDataTypes.INTEGER_TYPE);
       trackBuilder.addProperty(LOCATION, geometryType);
+      /*trackBuilder.addProperty(LON, TLcdCoreDataTypes.DOUBLE_TYPE);
+      trackBuilder.addProperty(LAT, TLcdCoreDataTypes.DOUBLE_TYPE);
+      trackBuilder.addProperty(HEIGHT, TLcdCoreDataTypes.DOUBLE_TYPE);*/
       //trackBuilder.addProperty(TIMESTAMP, TLcdCoreDataTypes.LONG_TYPE);
       trackBuilder.addProperty(CALLSIGN, TLcdCoreDataTypes.STRING_TYPE);
       trackBuilder.addProperty(NAME, TLcdCoreDataTypes.STRING_TYPE);
@@ -60,7 +66,6 @@ import com.luciad.util.TLcdHasGeometryAnnotation;
       trackBuilder.addProperty(COURSE, TLcdCoreDataTypes.STRING_TYPE);
       trackBuilder.addProperty(SPEED, TLcdCoreDataTypes.STRING_TYPE);
       trackBuilder.addProperty(CATEGORY, TLcdCoreDataTypes.STRING_TYPE);
-
 
       // Finalize the creation
       TLcdDataModel dataModel = builder.createDataModel();

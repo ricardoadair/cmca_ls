@@ -157,7 +157,8 @@ public class LayerFactory extends ALspSingleLayerFactory {
            aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Points with icon") ||
            aModel.getModelDescriptor().getDisplayName().equals("Polyline") ||
-           aModel.getModelDescriptor().getDisplayName().equals("Line");
+           aModel.getModelDescriptor().getDisplayName().equals("Line") ||
+           aModel.getModelDescriptor().getDisplayName().equals("Predicted");
   }
 
   @Override
@@ -184,6 +185,8 @@ public class LayerFactory extends ALspSingleLayerFactory {
     	return createPolylineLayer(aModel);
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Line")){
     	return createLineLayer(aModel);
+    } else if (aModel.getModelDescriptor().getDisplayName().equals("Predicted")){
+    	return createPredictedLayer(aModel);
     }
     //return null;
     return createSimpleLayer(aModel);
@@ -474,6 +477,70 @@ public class LayerFactory extends ALspSingleLayerFactory {
                 )
                 .build();
 	                                
+	  }
+  	
+  	private ILspLayer createPredictedLayer(ILcdModel aModel) {
+  		
+		ALspComplexStroke thickLine = parallelLine().lineWidth(1 * 4).lineColor(hex2Rgb(halo_color)).build();
+		ALspComplexStroke thinLine = parallelLine().lineWidth(1 * 2).lineColor(hex2Rgb(line_color)).build();
+		ALspComplexStroke baseLine = compose(thickLine, thinLine);
+  		ALspStyle style = TLspComplexStrokedLineStyle.newBuilder()
+                 .fallback(baseLine)
+                 .build();
+  		ILspLabelingAlgorithm labelingAlgorithm = new TLspLabelingAlgorithm(new TLspLabelLocationProvider(SOUTH));
+  		TLspLabelStyler fLabelStyler = TLspLabelStyler.newBuilder()
+                .group(TLspLabelPlacer.DEFAULT_DECLUTTER_GROUP)
+                .algorithm(labelingAlgorithm)
+                .styles(TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), style, TLspDataObjectLabelTextProviderStyle.newBuilder()
+                        .expressions(LineDataTypes.LABEL)
+                        .build())
+                .build();
+  		
+  		
+  		if(!getIconPath().equals("") && new File(getIconPath()).exists()) 
+  		{
+  			TLcdImageIcon icon = new TLcdImageIcon(new TLcdImageIcon(getIconPath()));
+	        TLspIconStyle.Builder iconStyleBuilder = TLspIconStyle.newBuilder()
+	            .icon(icon)
+	             //Set icons to have a fixed world size
+	            .scalingMode(ScalingMode.WORLD_SCALING_CLAMPED)
+	            .worldSize(50000)
+	            .scale(1)
+	            //Set the icons' opacity value
+	            .opacity(1.0f);
+	        TLspShapeLayerBuilder layerBuilder = TLspShapeLayerBuilder.newBuilder().model(aModel)
+	                .selectable(false)
+	                .bodyEditable(false)
+	                .bodyStyler(TLspPaintState.REGULAR,
+	                        new TLspStyler(
+	                        		iconStyleBuilder.build(),
+	                        		style
+	                        )
+	                 )
+	                .labelStyler(
+	                		TLspPaintState.REGULAR, 
+	                		fLabelStyler
+	                )
+	                ;
+	    	 return layerBuilder.build();
+
+  		}
+  		else
+  		{
+  		
+  			return TLspShapeLayerBuilder.newBuilder().model(aModel)
+                .selectable(false)
+                .bodyEditable(false)
+                .bodyStyles(TLspPaintState.REGULAR, style)
+                .bodyStyles(TLspPaintState.SELECTED, style)
+//                .bodyStyles(TLspPaintState.REGULAR, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+//                .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
+                .labelStyler(
+                		TLspPaintState.REGULAR, 
+                		fLabelStyler
+                )
+                .build();
+  		}                           
 	  }
   
 }

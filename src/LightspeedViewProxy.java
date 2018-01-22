@@ -8,6 +8,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.FocusEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.sql.SQLException;
@@ -126,14 +127,12 @@ public class LightspeedViewProxy {
 		// TODO Auto-generated catch block
 		e.printStackTrace();
 	}
-    
-    fMouseEventHandler = new MouseEventHandler(fView, conection);
+    fMouseEventHandler = new MouseEventHandler(fView);
     
   }
   
   private void initDataBaseController() throws ClassNotFoundException, SQLException {
 	  conection = new LuciadBDConnection(DataBase_host, DataBase_name, DataBase_user, DataBase_pass);
-	  //conection.setId_mision(String.valueOf(1));
   }
 
   public long getNativePeer() {
@@ -175,229 +174,13 @@ public class LightspeedViewProxy {
   }
 
   public void handleOnFocus() {
+	  System.out.println("aaaa");
     fMouseEventHandler.handleOnFocus();
   }
 
   public void handleOnBlur() {
+	  System.out.println("bbbb");
     fMouseEventHandler.handleOnBlur();
-  }
-  
-  //Keyboard Events
-  public abstract class AbstractContinuousAnimation {
-	  private ILspView fView;
-	  private ILcdAnimation fAnimation;
-	
-	  /**
-	   * Create a new <code>AbstractContinuousAnimation</code> on the specified view.
-	   *
-	   * @param aView the view.
-	   */
-	  public AbstractContinuousAnimation(ILspView aView) {
-	    fView = aView;
-	  }
-	
-	  /**
-	   * Start the continuous animation.
-	   */
-	  public void start() {
-	    if (fAnimation == null) {
-	      fAnimation = createAnimation(fView);
-	      ALcdAnimationManager.getInstance().putAnimation(fView.getViewXYZWorldTransformation(), fAnimation);
-	    }
-	  }
-	
-	  /**
-	   * Create a new continuous animation for the specified view.
-	   *
-	   * @param aView the view.
-	   *
-	   * @return the continuous animation.
-	   */
-	  protected abstract ILcdAnimation createAnimation(ILspView aView);
-	
-	  /**
-	   * Stop the continuous animation.
-	   */
-	  public void stop() {
-	    if (ALcdAnimationManager.getInstance().getAnimation(fView.getViewXYZWorldTransformation()) == fAnimation) {
-	      ALcdAnimationManager.getInstance().removeAnimation(fView.getViewXYZWorldTransformation());
-	    }
-	    fAnimation = null;
-	  }
-	}
-  
-  private class ContinuousPan extends AbstractContinuousAnimation {
-    public static final int LEFT = 0;
-    public static final int RIGHT = 1;
-    public static final int UP = 2;
-    public static final int DOWN = 3;
-
-    private int fDirection;
-    private int fPanSpeed;
-
-    public ContinuousPan(ILspView aView, int aDirection, int aPanSpeed) {
-      super(aView);
-      fDirection = aDirection;
-      fPanSpeed = aPanSpeed;
-    }
-
-    protected ILcdAnimation createAnimation(ILspView aView) {
-      double x = 0, y = 0;
-
-      switch (fDirection) {
-      case LEFT:
-        x = -fPanSpeed;
-        break;
-      case RIGHT:
-        x = +fPanSpeed;
-        break;
-      case UP:
-        y = -fPanSpeed;
-        break;
-      case DOWN:
-        y = +fPanSpeed;
-        break;
-      }
-
-      return new TLspViewNavigationUtil(aView).animatedContinuousPan(x, y);
-    }
-  }
-  
-  private class ContinuousZoom extends AbstractContinuousAnimation {
-
-    private double fZoomSpeed;
-
-    public ContinuousZoom(ILspView aView, double aZoomSpeed) {
-      super(aView);
-      fZoomSpeed = aZoomSpeed;
-    }
-
-    protected ILcdAnimation createAnimation(ILspView aView) {
-      ILcdPoint center = new TLcdXYPoint(aView.getWidth() * 0.5, aView.getHeight() * 0.5);
-      return new TLspViewNavigationUtil(aView).animatedContinuousZoom(center, fZoomSpeed);
-    }
-  }
-//  
-//  public class FlyToObjectAction extends ALcdAction {
-//	  private ILspView fView;
-//	  private TLspSelectControllerModel fSelectControllerModel = new TLspSelectControllerModel();
-//	
-//	  public FlyToObjectAction(ILspView aView) {
-//	    fView = aView;
-//	  }
-//	
-//	  @Override
-//	  public void actionPerformed(ActionEvent e) {
-//	    if (e instanceof TLcdActionAtLocationEvent) {
-//	      // Find the list of potential selection candidates based on the current location.
-//	      Point location = ((TLcdActionAtLocationEvent) e).getLocation();
-//	      List<TLspDomainObjectContext> candidates = fSelectControllerModel.selectionCandidates(
-//	          new TLspSelectPointInput(location),
-//	          Collections.singleton(TLspPaintRepresentation.BODY),
-//	          false,
-//	          fView);
-//	
-//	      // Fly to the first candidate that is selectable and is spatially bounded.
-//	      for (TLspDomainObjectContext candidate : candidates) {
-//	        if (candidate.getLayer().isSelectable()) {
-//	          ILcdBounds bounds = ALcdBounds.fromDomainObject(candidate.getObject());
-//	          if (ALcdBounds.isDefined(bounds)) {
-//	            clearSelection(fView);
-//	            candidate.getLayer().selectObject(candidate.getObject(), true, ILcdFireEventMode.FIRE_NOW);
-//	            try {
-//	              TLspViewNavigationUtil flyTo = new TLspViewNavigationUtil(fView);
-//	              flyTo.animatedFitOnModelBounds(bounds, candidate.getLayer().getModel().getModelReference());
-//	              return;
-//	            } catch (TLcdOutOfBoundsException e1) {
-//	              // ignore
-//	            }
-//	          }
-//	        }
-//	      }
-//	    }
-//	  }
-//	
-//	  private void clearSelection(ILspView aView) {
-//	    for (int i = 0; i < aView.layerCount(); i++) {
-//	      ILspLayer layer = aView.getLayer(i);
-//	
-//	      if (layer.isSelectableSupported()) {
-//	        layer.clearSelection(ILcdFireEventMode.FIRE_NOW);
-//	      }
-//	    }
-//	  }
-//	}
-//  
-  private ILcdAction start(final AbstractContinuousAnimation aContinuousAnimation) {
-    return new ALcdAction() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        aContinuousAnimation.start();
-      }
-    };
-  }
-
-  private ILcdAction stop(final AbstractContinuousAnimation aContinuousAnimation) {
-    return new ALcdAction() {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        aContinuousAnimation.stop();
-      }
-    };
-  }
-  
-  //private ILspController createActionController() {
-  private void createActionController() {
-      // Define action controllers for the mouse.
-      //TLspClickActionController flyToController = new TLspClickActionController(new FlyToObjectAction(getView()), 1);
-      //flyToController.setAWTFilter(TLcdAWTEventFilterBuilder.newBuilder().leftMouseButton().and().ctrlFilter(true).build());
-     	  
-      // Define action controllers for the numpad keys, + key and - key on the keyboard.
-      final ContinuousPan left = new ContinuousPan(getView(), ContinuousPan.LEFT, 600);
-      TLspKeyActionController keyControllerLeft = new TLspKeyActionController(
-          start(left), stop(left), KeyEvent.VK_LEFT);
-
-      final ContinuousPan right = new ContinuousPan(getView(), ContinuousPan.RIGHT, 600);
-      TLspKeyActionController keyControllerRight = new TLspKeyActionController(
-          start(right), stop(right), KeyEvent.VK_RIGHT);
-
-      final ContinuousPan up = new ContinuousPan(getView(), ContinuousPan.UP, 600);
-      TLspKeyActionController keyControllerUp = new TLspKeyActionController(
-          start(up), stop(up), KeyEvent.VK_UP);
-
-      final ContinuousPan down = new ContinuousPan(getView(), ContinuousPan.DOWN, 600);
-      TLspKeyActionController keyControllerDown = new TLspKeyActionController(
-          start(down), stop(down), KeyEvent.VK_DOWN);
-
-      final ContinuousZoom zoomOut = new ContinuousZoom(getView(), 0.5);
-      TLspKeyActionController keyControllerEnd = new TLspKeyActionController(
-          start(zoomOut), stop(zoomOut), KeyEvent.VK_END);
-
-      final ContinuousZoom zoomIn = new ContinuousZoom(getView(), 2.0);
-      TLspKeyActionController keyControllerHome = new TLspKeyActionController(
-          start(zoomIn), stop(zoomIn), KeyEvent.VK_HOME);
-
-//      flyToController.appendController(keyControllerLeft);
-//      flyToController.appendController(keyControllerRight);
-//      flyToController.appendController(keyControllerUp);
-//      flyToController.appendController(keyControllerDown);
-//      flyToController.appendController(keyControllerEnd);
-//      flyToController.appendController(keyControllerHome);
-//
-//      flyToController.appendController(createNavigationController());
-//
-//      //flyToController.setIcon(TLcdIconFactory.create(TLcdIconFactory.PROPERTIES_ICON));
-//
-//      flyToController.setShortDescription("");
-//      return flyToController;
-      
-      getView().setController(keyControllerLeft);
-//      getView().setController(keyControllerRight);
-//      getView().setController(keyControllerUp);
-//      getView().setController(keyControllerDown);
-//      getView().setController(keyControllerEnd);
-//      getView().setController(keyControllerHome);
-//      getView().setController(createNavigationController());
   }
   
   public static ALspController createNavigationController() {
@@ -490,10 +273,9 @@ public class LightspeedViewProxy {
      *
      * @param aView the view to which the events should be passed.
      */
-    private MouseEventHandler(TLspExternalView aView,  LuciadBDConnection conection_db) {
+    private MouseEventHandler(TLspExternalView aView) {
       fView = aView;
       fEventSource = fView.getOverlayComponent();
-      //conection = conection_db;
     }
 
     public void handleMousePressed(int aX, int aY, int aButtonId, int aModifiers) {
@@ -600,11 +382,13 @@ public class LightspeedViewProxy {
     }
 
     public void handleOnFocus() {
+      System.out.println("OnFocus");
       FocusEvent event = new FocusEvent(fEventSource, FocusEvent.FOCUS_GAINED);
       handleAWTEvent(event);
     }
 
     public void handleOnBlur() {
+      System.out.println("OnBlur");
       FocusEvent event = new FocusEvent(fEventSource, FocusEvent.FOCUS_LOST);
       handleAWTEvent(event);
     }

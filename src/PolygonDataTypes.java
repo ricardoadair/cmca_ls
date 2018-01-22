@@ -23,6 +23,9 @@ public class PolygonDataTypes {
 
     static final String ID = "id";
     static final String LOCATION = "Localización";
+    /*static final String LON = "Longitud";
+    static final String LAT = "Latitud";
+    static final String HEIGHT = "Altitud";*/
     //static final String TIMESTAMP = "timestamp";
     static final String CALLSIGN = "callSign";
     static final String NAME = "Nombre";
@@ -53,6 +56,9 @@ public class PolygonDataTypes {
       TLcdDataTypeBuilder trackBuilder = builder.typeBuilder(POLYGON_TYPE);
       trackBuilder.addProperty(ID, TLcdCoreDataTypes.INTEGER_TYPE);
       trackBuilder.addProperty(LOCATION, geometryType);
+      /*trackBuilder.addProperty(LON, TLcdCoreDataTypes.DOUBLE_TYPE);
+      trackBuilder.addProperty(LAT, TLcdCoreDataTypes.DOUBLE_TYPE);
+      trackBuilder.addProperty(HEIGHT, TLcdCoreDataTypes.DOUBLE_TYPE);*/
       //trackBuilder.addProperty(TIMESTAMP, TLcdCoreDataTypes.LONG_TYPE);
       trackBuilder.addProperty(CALLSIGN, TLcdCoreDataTypes.STRING_TYPE);
       trackBuilder.addProperty(NAME, TLcdCoreDataTypes.STRING_TYPE);
