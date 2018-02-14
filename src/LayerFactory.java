@@ -33,12 +33,10 @@ import com.luciad.view.lightspeed.painter.label.style.TLspDataObjectLabelTextPro
 import com.luciad.view.lightspeed.style.ALspStyle;
 import com.luciad.view.lightspeed.style.ILspTexturedStyle;
 import com.luciad.view.lightspeed.style.ILspWorldElevationStyle;
-import com.luciad.view.lightspeed.style.TLsp3DIconStyle;
 import com.luciad.view.lightspeed.style.TLspComplexStrokedLineStyle;
 import com.luciad.view.lightspeed.style.TLspFillStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle;
 import com.luciad.view.lightspeed.style.TLspLineStyle;
-import com.luciad.view.lightspeed.style.TLspPinLineStyle;
 import com.luciad.view.lightspeed.style.TLspTextStyle;
 import com.luciad.view.lightspeed.style.TLspVerticalLineStyle;
 import com.luciad.view.lightspeed.style.TLspIconStyle.ScalingMode;
@@ -158,7 +156,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
            aModel.getModelDescriptor().getDisplayName().equals("Points with icon") ||
            aModel.getModelDescriptor().getDisplayName().equals("Polyline") ||
            aModel.getModelDescriptor().getDisplayName().equals("Line") ||
-           aModel.getModelDescriptor().getDisplayName().equals("Predicted");
+           aModel.getModelDescriptor().getDisplayName().equals("Predicted"); 
   }
 
   @Override

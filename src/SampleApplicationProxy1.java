@@ -15,76 +15,55 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
-import java.awt.Label;
-import java.awt.Point;
 import java.awt.PopupMenu;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.SQLException;
-import java.sql.Time;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
-import javax.swing.JDialog;
-import javax.swing.JFormattedTextField;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
-import javax.swing.JTextField;
 import javax.swing.SpinnerModel;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.Timer;
 import javax.swing.border.LineBorder;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import com.luciad.datamodel.ILcdDataObject;
-import com.luciad.datamodel.TLcdCoreDataTypes;
-import com.luciad.datamodel.TLcdDataModel;
-import com.luciad.datamodel.TLcdDataModelBuilder;
 import com.luciad.datamodel.TLcdDataObject;
-import com.luciad.datamodel.TLcdDataType;
-import com.luciad.datamodel.TLcdDataTypeBuilder;
-import com.luciad.format.database.TLcdPrimaryKeyAnnotation;
-import com.luciad.format.magneticnorth.ILcdMagneticNorthMap;
-import com.luciad.geodesy.ILcdEllipsoid;
+import com.luciad.format.asterix.TLcdASTERIXTrack;
 import com.luciad.geodesy.TLcdEllipsoid;
-import com.luciad.geodesy.TLcdGeodeticDatum;
+import com.luciad.gui.ILcdDialogManager;
 import com.luciad.gui.TLcdAWTUtil;
 import com.luciad.gui.TLcdUndoManager;
+import com.luciad.gui.TLcdUserDialog;
 import com.luciad.gui.swing.TLcdOverlayLayout;
-import com.luciad.gui.swing.navigationcontrols.ALcdCompassNavigationControl;
 import com.luciad.model.ILcdModel;
 import com.luciad.model.ILcdModelReference;
 import com.luciad.model.TLcd2DBoundsIndexedModel;
@@ -94,15 +73,12 @@ import com.luciad.reference.ILcdGeoReference;
 import com.luciad.reference.ILcdGeocentricReference;
 import com.luciad.reference.ILcdGeodeticReference;
 import com.luciad.reference.TLcdGeodeticReference;
-import com.luciad.reference.TLcdGridReference;
 import com.luciad.reference.format.TLcdEPSGReferenceParser;
 import com.luciad.shape.ILcdPoint;
 import com.luciad.shape.shape2D.ILcd2DEditablePoint;
 import com.luciad.shape.shape2D.TLcd2DEditablePointList;
-import com.luciad.shape.shape2D.TLcdLonLatBounds;
 import com.luciad.shape.shape2D.TLcdLonLatCircle;
 import com.luciad.shape.shape2D.TLcdLonLatPoint;
-import com.luciad.shape.shape2D.TLcdLonLatPolygon;
 import com.luciad.shape.shape2D.TLcdXYCircle;
 import com.luciad.shape.shape2D.TLcdXYPoint;
 import com.luciad.shape.shape2D.TLcdXYPolygon;
@@ -119,75 +95,49 @@ import com.luciad.shape.shape3D.TLcdXYZPoint;
 import com.luciad.shape.shape3D.TLcdXYZPolygon;
 import com.luciad.shape.shape3D.TLcdXYZPolyline;
 import com.luciad.shape.shape3D.TLcdXYZPolypoint;
-import com.luciad.tea.ALcdTerrainElevationProvider;
-import com.luciad.tea.TLcdFixedLevelBasedRasterElevationProvider;
 import com.luciad.tea.TLcdHeightProviderAdapter;
 import com.luciad.text.TLcdDistanceFormat;
-import com.luciad.transformation.ILcdModelXYWorldTransformation;
-import com.luciad.transformation.ILcdModelXYZWorldTransformation;
-import com.luciad.transformation.TLcdDefaultModelXYZWorldTransformation;
-import com.luciad.transformation.TLcdGeoReference2GeoReference;
-import com.luciad.util.ILcdFireEventMode;
 import com.luciad.util.ILcdSelectionListener;
-import com.luciad.util.TLcdConstant;
 import com.luciad.util.TLcdDistanceUnit;
-import com.luciad.util.TLcdHasGeometryAnnotation;
 import com.luciad.util.TLcdOutOfBoundsException;
 import com.luciad.util.concurrent.TLcdLockUtil;
 import com.luciad.util.height.ILcdHeightProvider;
-import com.luciad.util.measure.ILcdLayerMeasureProviderFactory;
-import com.luciad.util.measure.ILcdModelMeasureProviderFactory;
 import com.luciad.view.ILcdXYZWorldReference;
 import com.luciad.view.TLcdAWTEventFilterBuilder;
-import com.luciad.view.lightspeed.ILspView;
-import com.luciad.view.lightspeed.TLspContext;
-import com.luciad.view.lightspeed.camera.ALspViewXYZWorldTransformation;
-import com.luciad.view.lightspeed.camera.TLspViewXYZWorldTransformation2D;
+import com.luciad.view.lightspeed.TLspExternalView;
 import com.luciad.view.lightspeed.camera.TLspViewXYZWorldTransformation3D;
 import com.luciad.view.lightspeed.controller.ILspController;
-import com.luciad.view.lightspeed.controller.ruler.TLspRulerController;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerDistanceFormatStyle;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerLabelStyler;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerSegmentLabelContentStyle;
 import com.luciad.view.lightspeed.controller.ruler.TLspRulerController.MeasureMode;
 import com.luciad.view.lightspeed.layer.ILspLayer;
 import com.luciad.view.lightspeed.layer.TLspCompositeLayerFactory;
-import com.luciad.view.lightspeed.layer.TLspPaintState;
 import com.luciad.view.lightspeed.layer.shape.TLspShapeLayerBuilder;
 import com.luciad.view.lightspeed.layer.style.TLspLayerStyle;
 import com.luciad.view.lightspeed.painter.grid.TLspLonLatGridLayerBuilder;
-import com.luciad.view.lightspeed.painter.grid.TLspMGRSGridLayerBuilder;
-import com.luciad.view.lightspeed.painter.label.style.TLspDataObjectLabelTextProviderStyle;
 import com.luciad.view.lightspeed.services.effects.TLspAmbientLight;
 import com.luciad.view.lightspeed.services.effects.TLspHeadLight;
-import com.luciad.view.lightspeed.style.TLspFillStyle;
 import com.luciad.view.lightspeed.style.TLspLabelBoxStyle;
-import com.luciad.view.lightspeed.style.TLspLineStyle;
 import com.luciad.view.lightspeed.style.TLspTextStyle;
-import com.luciad.view.lightspeed.style.ILspWorldElevationStyle.ElevationMode;
-import com.luciad.view.lightspeed.style.complexstroke.ALspComplexStroke.PolylineBuilder;
 import com.luciad.view.lightspeed.style.styler.TLspCustomizableStyle;
-import com.luciad.view.lightspeed.style.styler.TLspCustomizableStyler;
 import com.luciad.view.lightspeed.swing.TLspBalloonManager;
 import com.luciad.view.lightspeed.swing.TLspScaleIndicator;
-import com.luciad.view.lightspeed.swing.navigationcontrols.TLspCompassNavigationControl;
 import com.luciad.view.lightspeed.swing.navigationcontrols.TLspNavigationControlsBuilder;
 import com.luciad.view.lightspeed.util.TLspViewNavigationUtil;
 import com.luciad.view.swing.ALcdBalloonDescriptor;
 import com.luciad.view.swing.ILcdBalloonContentProvider;
 import com.luciad.view.swing.TLcdModelElementBalloonDescriptor;
-import org.apache.batik.util.gui.LanguageDialog.Panel;
+
+//import asterix.GXYDataUtil;
+//import asterix.HeadingSensitiveDeclutterer;
+import asterix.LiveDecodedModel;
+import asterix.LiveDecoderResultCallback;
+import asterix.SimulatorGXYLayerFactory;
+import asterix.TransformationProvider;
+
 import org.jdesktop.swingx.VerticalLayout;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-//import org.json.simple.parser.ParseException;
-
-/*import samples.common.BalloonViewSelectionListener;
-import samples.common.dataObjectDisplayTree.DataObjectDisplayTree;
-import samples.common.serviceregistry.ServiceRegistry;
-import samples.lightspeed.common.LspDataUtil;
-import samples.lightspeed.common.LuciadLogoIcon;
-import samples.lightspeed.common.MouseLocationComponent;*/
 
 /**
  * An extension of {@link LightspeedViewProxy} that adds application-specific bridging calls.
@@ -243,6 +193,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   private static Map<Integer,Map<String, Object>> fElementsTracks = new HashMap<>();
   private final Map<Integer, Map<String, Object >> fPolygonTrackLayers;
   private final AtomicInteger fAtomicInteger;
+  
+  //Asterix
+  private LiveDecodedModel fLiveDecodedModel;
+  private TransformationProvider fTransformationProvider = null;
+  private final Timer fTimer = new Timer(50, new InvalidateLabelsActionListener());
+  private final SimulatorGXYLayerFactory fLiveTrackGXYLayerFactory = new SimulatorGXYLayerFactory();
+  ILspLayer layer_asterix = null;
+  private Map <String, TLcdASTERIXTrack>  tracks_asterix_objects = new HashMap<>();
   
   //LUCIAD Componets
   private Component navigationControls;
@@ -493,9 +451,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     timer = Executors.newSingleThreadScheduledExecutor();
     timer_delete = Executors.newSingleThreadScheduledExecutor();
 	timer.scheduleAtFixedRate(update_points, 1, 1, TimeUnit.SECONDS);
-    
 	timer.scheduleAtFixedRate(update, 200, 200, TimeUnit.MILLISECONDS);
 	
+	initializeDecoders();
+
   }
   
   final Runnable update_points = new Runnable() {
@@ -534,6 +493,34 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		  delete_files();
 	  }
 	};
+	
+	final Runnable deleteAsterixLayers= new Runnable() {
+	  public void run() 
+	  {
+		  if(layer_asterix != null)
+		  {  
+			  List<ILspLayer> asterix_tracks_remove = new ArrayList<ILspLayer>();
+	    	  Enumeration<ILspLayer> layers = getView().layers();
+	    	  while(layers.hasMoreElements() ) 
+	    	  {
+	    		  ILspLayer l = layers.nextElement();
+	    		  boolean is_asterix = l.getModel().getModelDescriptor().toString().contains("TLcdASTERIXTrackModelDescriptor");
+	    		  int slayer_asterix = layer_asterix.hashCode();
+	    		  int sl = l.hashCode();
+	    		  
+	    		  if(is_asterix && slayer_asterix != sl )
+	    		  {
+	    			  asterix_tracks_remove.add(l);
+	    		  }
+	    	  }
+	    	  
+	    	  for (ILspLayer remoce_layer : asterix_tracks_remove) 
+	    	  {
+				getView().removeLayer(remoce_layer);
+	    	  }
+		  }
+	 }
+  };
 		
 	/*private TLspCustomizableStyle fLineStyle1;
 	  private TLspCustomizableStyle fLineStyle2;
@@ -1031,7 +1018,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
  		prediction_time_minutes_spinner.addChangeListener(new ChangeListener() {
 			@Override
 			public void stateChanged(ChangeEvent e) {
-				System.out.println("Tiempo predicción"+ prediction_time_minutes_spinner.getValue().toString());
+				//System.out.println("Tiempo predicción"+ prediction_time_minutes_spinner.getValue().toString());
 				prediction_time_hours_spinner.setValue( Double.parseDouble(prediction_time_minutes_spinner.getValue().toString()) / 60 );
 			}
 		
@@ -1172,44 +1159,49 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		String ac_coords = "";
 		String mouse_coords = "";
 		String flir_coords = "";
-		if(mouse_position != null && ac_point != null && flir_point != null) 
-		{
-		  //new_coords = "A/C:" + ac  +  "             Mouse:" + df.format(mouse_position.getX()) +"," + df.format(mouse_position.getY()) + "                FLIR: "+ flir;
-		  new_coords = "";
-			
 		  if(default_unit_location == unity_id_GD)
 		  {
-			  ac_coords = df.format(ac_point.getX()) + "," + df.format(ac_point.getY());
-			  mouse_coords = df.format(mouse_position.getX()) + "," + df.format(mouse_position.getY());
-			  flir_coords = df.format(flir_point.getX()) + "," + df.format(flir_point.getY());
+			  if(ac_point != null) 
+				  ac_coords = df.format(ac_point.getX()) + "," + df.format(ac_point.getY());
+			  if(mouse_position != null) 
+				  mouse_coords = df.format(mouse_position.getX()) + "," + df.format(mouse_position.getY());
+			  if(flir_point != null) 
+				  flir_coords = df.format(flir_point.getX()) + "," + df.format(flir_point.getY());
 		  }
 		  else if(default_unit_location == unity_id_GMS)
 		  { 
-			  ac_coords = getFormatDMS(ac_point.getY(), ac_point.getX());
-			  mouse_coords = getFormatDMS(mouse_position.getY(), mouse_position.getX());
-			  flir_coords = getFormatDMS(flir_point.getY(), flir_point.getX());
+			  if(ac_point != null) 
+				  ac_coords = getFormatDMS(ac_point.getY(), ac_point.getX());
+			  if(mouse_position != null) 
+				  mouse_coords = getFormatDMS(mouse_position.getY(), mouse_position.getX());
+			  if(flir_point != null) 
+				  flir_coords = getFormatDMS(flir_point.getY(), flir_point.getX());
 		  }
 		  else if(default_unit_location == unity_id_UTM)
 		  {
-			  ac_coords = getFormatUTM(ac_point.getY(), ac_point.getX());
-			  mouse_coords = getFormatUTM(mouse_position.getY(), mouse_position.getX());
-			  flir_coords = getFormatUTM(flir_point.getY(), flir_point.getX());
+			  if(ac_point != null) 
+				  ac_coords = getFormatUTM(ac_point.getY(), ac_point.getX());
+			  if(mouse_position != null) 
+				  mouse_coords = getFormatUTM(mouse_position.getY(), mouse_position.getX());
+			  if(flir_point != null) 
+				  flir_coords = getFormatUTM(flir_point.getY(), flir_point.getX());
 		  }
 		  else if(default_unit_location == unity_id_MGRS)
 		  {
-			  ac_coords = getFormatMGRS(ac_point.getY(), ac_point.getX());
-			  mouse_coords = getFormatMGRS(mouse_position.getY(), mouse_position.getX());
-			  flir_coords = getFormatMGRS(flir_point.getY(), flir_point.getX());
+			  if(ac_point != null) 
+				  ac_coords = getFormatMGRS(ac_point.getY(), ac_point.getX());
+			  if(mouse_position != null) 
+				  mouse_coords = getFormatMGRS(mouse_position.getY(), mouse_position.getX());
+			  if(flir_point != null) 
+				  flir_coords = getFormatMGRS(flir_point.getY(), flir_point.getX());
 		  }
 			
-			new_coords = ( 
-					"A/C: " + ac_coords  +  
-					"             Mouse: " + mouse_coords + 
-					"             FLIR: " + flir_coords 
-			);
-			
-			coords.setText(new_coords);
-		}
+		  new_coords = ( 
+		    "A/C: " + ac_coords  +  
+			"             Mouse: " + mouse_coords + 
+			"             FLIR: " + flir_coords 
+		  );
+		  coords.setText(new_coords);
 	}
 	
 	public void setBasePath(String new_base_path) {
@@ -2500,7 +2492,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	      }
 	      catch(Exception e)
 	      {
-	    	  System.out.println("catch");
 	    	  System.out.println(e);
 	      }
 	      model.fireCollectedModelChanges();
@@ -2628,7 +2619,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	      }
 	      catch(Exception e)
 	      {
-	    	  System.out.println("catch");
 	    	  System.out.println(e);
 	      }
 	      model.fireCollectedModelChanges();
@@ -3345,8 +3335,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  double lat = (Math.random()*(max_lat-min_lat+1)+min_lat)*(-1);
 	  double lng = Math.random()*(max_lng-min_lng+1)+min_lng;
 	  TLcdLonLatHeightPoint p = new TLcdLonLatHeightPoint(lat,lng,0);
-	  //System.out.println(lat);
-	  //System.out.println(lng);
 	  ILcdPoint point = p.getPoint(0);
 	  System.out.println(point);
 	  return point;  
@@ -3392,6 +3380,176 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     // create a geodetic polygon object from the previously created ILcd2DEditablePointList
     // on the given ellipsoid aEllipsoid
     return new TLcdXYPolygon(points);
+  }
+  
+  public TransformationProvider getTransformationProvider() {
+	    return fTransformationProvider;
+  }
+  
+  //@Override
+  protected void initializeDecoders() {
+	  
+    //Create and configure a live ASTERIX model decoder. This decoder reads data
+    //from the specified input stream and updates the given modelList accordingly.
+    TransformationProvider transformationProvider = getTransformationProvider();
+
+    fLiveDecodedModel = new LiveDecodedModel(transformationProvider, new LiveDecoderResultCallback(getView().getOverlayComponent()) {
+      @Override
+      public void trackModelAdded(LiveDecodedModel aModel, ILcdModel aTrackModel) 
+      {
+        /*GXYDataUtil.instance()
+        .model(aTrackModel)
+        .layer(fLiveTrackGXYLayerFactory)
+        .labelingAlgorithm(new HeadingSensitiveDeclutterer())
+        .addToView( getView());*/
+    	  
+    	if(layer_asterix == null)
+    	{
+    		layer_asterix = LspDataUtil
+				.instance()
+				.model(aTrackModel)
+				.layer(fLiveTrackGXYLayerFactory)
+				.getLayer();
+			getView().addLayer(layer_asterix);
+			layer_asterix.getModel().removeAllElements(ILcdModel.FIRE_NOW);
+			//System.out.println("Se creo layer de asterix");
+			
+    	}
+    	  
+    	fTimer.setRepeats(true);
+        fTimer.start();
+        
+        LspDataUtil
+			.instance()
+			.model(aTrackModel)
+			.layer(fLiveTrackGXYLayerFactory)
+			.addToView(getView());
+      }
+      
+      @Override
+      public void update(LiveDecodedModel aModel ) 
+      {
+    	  List<TLcdASTERIXTrack> asterix_tracks = new ArrayList<TLcdASTERIXTrack>();
+    	  
+    	  Enumeration<ILspLayer> layers = getView().layers();
+    	  int count = 0;
+    	  while(layers.hasMoreElements() ) 
+    	  {
+    		  ILspLayer l = layers.nextElement();
+    		  boolean is_asterix = l.getModel().getModelDescriptor().toString().contains("TLcdASTERIXTrackModelDescriptor");
+    		  int slayer_asterix = layer_asterix.hashCode();
+    		  int sl = l.hashCode();
+    		  
+    		  if(is_asterix && slayer_asterix != sl )
+    		  {
+    			  count++;
+    			  l.setVisible(false); 
+    			  Enumeration<Object> e = l.getModel().elements();
+    			  while(e.hasMoreElements()) 
+    			  {
+    				  Object o = e.nextElement();
+    				  if(o instanceof TLcdASTERIXTrack)
+    				  {
+    					  TLcdASTERIXTrack t = (TLcdASTERIXTrack)o;
+    					  asterix_tracks.add(t);
+    				  }
+    			  }
+    	  	  }
+    	  }
+    	  //System.out.println("Asterix Layers: " + count);
+    	  ILcdModel model = layer_asterix.getModel();
+    	  for (TLcdASTERIXTrack at : asterix_tracks) 
+    	  {
+    		  if( tracks_asterix_objects.containsKey( at.toString() ) )
+    		  {
+    			  TLcdASTERIXTrack original = tracks_asterix_objects.get(at.toString());
+    			  //((ILcd3DEditablePoint) track.getValue(TrackDataTypes.LOCATION)).move3D(aX, aY, aZ);
+    			  original.move3D(at.getLon(), at.getLat(), at.getZ());
+    			  tracks_asterix_objects.replace(at.toString(), original);
+    	          model.elementChanged(original, ILcdModel.FIRE_LATER);
+    		  }
+    		  else
+    		  {
+    			  tracks_asterix_objects.put(at.toString(), at);
+    			  model.addElement(at, ILcdModel.FIRE_LATER);
+    		  }
+    	  }
+    	  
+    	  model.fireCollectedModelChanges();
+      }
+      
+    }
+   );
+    
+    try {
+      fLiveDecodedModel.startLiveDecoder();
+      timer.scheduleAtFixedRate(deleteAsterixLayers, 5000, 5000, TimeUnit.MILLISECONDS);
+    } catch (IOException e) {
+    	 System.out.println("Error creando layer");
+      TLcdUserDialog.message(
+          e.getMessage(),
+          ILcdDialogManager.ERROR_MESSAGE,
+          getView().getOverlayComponent(), 
+          getView().getOverlayComponent()
+      );
+    }
+  }
+
+  //@Override
+  public void tearDown() {
+    fTimer.stop();
+    fLiveDecodedModel.dispose();
+    //super.tearDown();
+  }
+  
+  private class InvalidateLabelsActionListener implements ActionListener {
+
+	    /*@Override
+	    public void actionPerformed(ActionEvent e) {
+	      // Firing model changes because of track updates automatically refreshes the map, but the label decluttering
+	      // algorithm (see TLcdGXYContinuousLabelingAlgorithm) needs a refresh from time to time, to make the
+	      // labels move away gently if overlap is about to occur.
+	      ILcdGXYLayer trackLayer = findTrackLayer(getView());
+	      if (trackLayer != null && trackLayer.isLabeled()) {
+	    	  ((ILcdGXYView)getView()).invalidateGXYLayer(trackLayer, true, this, "Invalidating labels of track layer");
+	      }
+	    }
+
+	    private ILcdGXYLayer findTrackLayer(TLspExternalView tLspExternalView) {
+	      Enumeration layers = tLspExternalView.layers();
+	      while (layers.hasMoreElements()) {
+	        ILcdGXYLayer layer = (ILcdGXYLayer) layers.nextElement();
+	        //if (fLiveTrackGXYLayerFactory.canCreateLayers(layer.getModel())) {
+	        if (fLiveTrackGXYLayerFactory.accept(layer.getModel())) {
+	          return layer;
+	        }
+	      }
+	      return null;
+	    }*/
+	  
+	  @Override
+	    public void actionPerformed(ActionEvent e) {
+	      // Firing model changes because of track updates automatically refreshes the map, but the label decluttering
+	      // algorithm (see TLcdGXYContinuousLabelingAlgorithm) needs a refresh from time to time, to make the
+	      // labels move away gently if overlap is about to occur.
+		  ILspLayer trackLayer = findTrackLayer(getView());
+	      if (trackLayer != null ) {
+	    	  getView().invalidate(true, trackLayer, "Invalidating labels of track layer");
+	      }
+	    }
+
+	    private ILspLayer findTrackLayer(TLspExternalView tLspExternalView) {
+	      Enumeration layers = tLspExternalView.layers();
+	      while (layers.hasMoreElements()) {
+	    	  ILspLayer layer =  (ILspLayer)layers.nextElement();
+	        if (fLiveTrackGXYLayerFactory.canCreateLayers(layer.getModel())) {
+	        //if (fLiveTrackGXYLayerFactory.accept(layer.getModel())) {
+	          return layer;
+	        }
+	      }
+	      return null;
+	    }
+	    
   }
   
 }
