@@ -95,11 +95,8 @@ import com.luciad.view.lightspeed.util.TLspViewNavigationUtil;
  */
 public class LightspeedViewProxy {
   //Data Base conection
-  private String DataBase_host = "localhost";
-  private String DataBase_name = "cmca";
-  private String DataBase_user = "root";
-  private String DataBase_pass = "root";
   LuciadBDConnection conection = null;
+  boolean db_connection_successful = false;
   
   private final long fNativePeer;
   private final TLspExternalView fView;
@@ -116,24 +113,49 @@ public class LightspeedViewProxy {
     });
     //fView.setController(createActionController());
     
-    try {
-		initDataBaseController();
-		
-		
-	} catch (ClassNotFoundException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (SQLException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	}
     fMouseEventHandler = new MouseEventHandler(fView);
     
   }
   
-  private void initDataBaseController() throws ClassNotFoundException, SQLException {
-	  conection = new LuciadBDConnection(DataBase_host, DataBase_name, DataBase_user, DataBase_pass);
+  public boolean setDataBaseParams(String XmlDataBase_host, String XmlDataBase_name, String XmlDataBase_user, String XmlDataBase_pass) 
+  {
+	  try 
+	  {
+		  conection = new LuciadBDConnection(XmlDataBase_host, XmlDataBase_name, XmlDataBase_user, XmlDataBase_pass);
+		  return conection.testConnection();
+	  } 
+	  catch (ClassNotFoundException e) 
+	  {
+		  e.printStackTrace();
+	  } 
+	  catch (SQLException e) 
+	  {
+		  e.printStackTrace();
+	  }
+	  return false;
   }
+  
+  /*public boolean setDataBaseParams() 
+  {
+	  String DataBase_host = "localhost";
+	  String DataBase_name = "cmca";
+	  String DataBase_user = "root";
+	  String DataBase_pass = "root";
+	  try 
+	  {
+		  conection = new LuciadBDConnection(DataBase_host, DataBase_name, DataBase_user, DataBase_pass);
+		  return conection.testConnection();
+	  } 
+	  catch (ClassNotFoundException e) 
+	  {
+		  e.printStackTrace();
+	  } 
+	  catch (SQLException e) 
+	  {
+		  e.printStackTrace();
+	  }
+	  return false;
+  }*/
 
   public long getNativePeer() {
     return fNativePeer;

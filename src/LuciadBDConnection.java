@@ -46,6 +46,20 @@ public class LuciadBDConnection {
         this.connection = getConnection();
     }
     
+    public boolean testConnection()
+    {
+    	try 
+    	{
+			Statement stmt = connection.createStatement();
+			return true;
+		} 
+    	catch (SQLException e) 
+    	{
+			e.printStackTrace();
+		}
+    	return false;
+    }
+    
         /**
      *
      * @param host the host location (locahost:port)

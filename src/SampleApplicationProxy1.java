@@ -11,6 +11,7 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -43,6 +44,7 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
@@ -135,8 +137,13 @@ import asterix.LiveDecodedModel;
 import asterix.LiveDecoderResultCallback;
 import asterix.SimulatorGXYLayerFactory;
 import asterix.TransformationProvider;
+import utils.Utilidades;
 
 import org.jdesktop.swingx.VerticalLayout;
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.input.SAXBuilder;
 import org.json.simple.JSONObject;
 
 /**
@@ -349,29 +356,49 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   	}
   };
   
+  Utilidades utils = new Utilidades();
+  
   public SampleApplicationProxy1(long aNativePeer) 
   {
     super(aNativePeer);
     
+    String path = System.getProperty("user.dir");
+    path = path.endsWith("/data") ? path.replace("/data", "") : path;
+    System.out.println("JAVA run as: " +path);
+    setBasePath(path);
+    utils.setPath(path);
+    
+    timer = Executors.newSingleThreadScheduledExecutor();
+    timer_delete = Executors.newSingleThreadScheduledExecutor();
+    
+    fAtomicInteger = new AtomicInteger();
+    fTrackLayers = new HashMap<>();
+    fTrackLayersStyles = new HashMap<>();
+    fPolygonTrackLayers = new HashMap<>();
+    
+    Map <String,Object> result_init_config = iniciarConfiguraciones();
+    if( (result_init_config.containsKey("result") ? (boolean)result_init_config.get("result") : false) == false ) 
+    {
+    	String msg = result_init_config.containsKey("msg") ? result_init_config.get("msg").toString() : "Error al iniciar";
+    	JOptionPane.showMessageDialog( 
+			new Frame(), 
+			msg, 
+			"Advertencia", 
+			JOptionPane.WARNING_MESSAGE 
+    	);
+    	System.out.println(msg);
+    }
     //fTerrainRulerController = new TLspRulerController();
     fTerrainRulerController = new TerrainRulerController(createNavigationController());
     fTerrainRulerController.addUndoableListener(new TLcdUndoManager());
     fTerrainRulerController.setAWTFilter(TLcdAWTEventFilterBuilder.newBuilder().leftMouseButton().or().rightMouseButton().or().keyEvents().build());
     //fTerrainRulerController.appendController(createNavigationController());
     initRulerControllerStyles();
-    
-    String path = System.getProperty("user.dir");
-    path = path.endsWith("/data") ? path.replace("/data", "") : path;
-    System.out.println("JAVA run as: " +path);
-    setBasePath(path);
 
     getView().getServices().getGraphicsEffects().add(new TLspAmbientLight());
     getView().getServices().getGraphicsEffects().add(new TLspHeadLight(getView()));
 
-    fAtomicInteger = new AtomicInteger();
-    fTrackLayers = new HashMap<>();
-    fTrackLayersStyles = new HashMap<>();
-    fPolygonTrackLayers = new HashMap<>();
+   
 
     // Add navigation control, scale indicator and mouse readout to the overlay component.
     TLcdAWTUtil.invokeAndWait(() -> {
@@ -396,7 +423,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
       /*JLabel luciadLogo = new JLabel(new LuciadLogoIcon());
       overlay.add(luciadLogo);
       layout.putConstraint(luciadLogo, TLcdOverlayLayout.Location.SOUTH_WEST, TLcdOverlayLayout.ResolveClash.VERTICAL);
-*/
+      */
       //Laber for coords
       coords = new JLabel("");
       coords.setBackground(Color.LIGHT_GRAY);
@@ -448,15 +475,135 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     //getView().addLayer(TLspMGRSGridLayerBuilder.newBuilder().build());
     navigationUtil = new TLspViewNavigationUtil(getView());
     
-    timer = Executors.newSingleThreadScheduledExecutor();
-    timer_delete = Executors.newSingleThreadScheduledExecutor();
+    
+    if( (result_init_config.containsKey("result") ? (boolean)result_init_config.get("result") : false) == false ) 
+    {
+    	timer_delete.schedule(center_mexico, 5, TimeUnit.SECONDS);
+    }
 	timer.scheduleAtFixedRate(update_points, 1, 1, TimeUnit.SECONDS);
 	timer.scheduleAtFixedRate(update, 200, 200, TimeUnit.MILLISECONDS);
-	
-	initializeDecoders();
-
   }
   
+  private boolean leerXml()
+  {   
+	  System.out.println("Leyendo archivo de configuración " + utils.ARCHIVO_CONFIGURACION );
+	    SAXBuilder builder = new SAXBuilder();
+	    File xmlFile = new File( utils.ARCHIVO_CONFIGURACION );
+	    
+	    try 
+	    {      
+	      Document document = ( Document ) builder.build( xmlFile );
+	      Element rootNode = document.getRootElement();
+	      java.util.List<Element> list = rootNode.getChildren( "configuraciones" );
+	 
+	      for ( int i = 0; i < list.size(); i++) 
+	      {
+	        Element node = (Element) list.get(i);
+	        if(node.getChildren().size() == utils.getTagsCount()) 
+	        {
+	        	for (Map.Entry<String, Object> tag : utils.getTags().entrySet()) 
+	        	{
+	        	    //System.out.println("clave=" + tag.getKey() + ", valor=" + tag.getValue());
+	        		utils.setTagValue( tag.getKey(),  node.getChildText( utils.getTagName(tag.getKey()) ) );
+	        	}
+	        	//utils.printTagsValues();
+	        	return true;
+	        }
+	      }
+	    }
+	    catch (IOException io) 
+	    {
+	      System.out.println(io.getMessage());
+	      return false;
+		} 
+	    catch (JDOMException jdomex) 
+	    {
+	      System.out.println(jdomex.getMessage());
+	      return false;
+		}
+	    return false;
+	}
+  
+  private Map<String,Object> iniciarConfiguraciones()
+  {
+  	//Leer Archivo de Configuraciones
+  	boolean resultado_leer_xml = leerXml();
+  	boolean resultado_iniciar_bd = false;
+  	boolean resultado_iniciar_radar = false;
+  	String database_host = "";
+  	String database_name = "";
+  	String database_user = "";
+  	String database_pass = "";
+  	String radar_ip = "";
+  	String radar_puerto = "";
+  	
+  	String database_server_msg = "";
+  	String radar_server_msg = "";
+  	
+  	if(resultado_leer_xml)
+  	{
+  		database_host = utils.getTagValue("DATABASE_HOST").toString();
+  		database_name = utils.getTagValue("DATABASE_NAME").toString();
+  		radar_ip = utils.getTagValue("RADAR_SERVER_IP").toString();
+  		radar_puerto = utils.getTagValue("RADAR_SERVER_PUERTO").toString();
+  		resultado_iniciar_bd = setDataBaseParams(
+			utils.getTagValue("DATABASE_HOST").toString(), 
+			utils.getTagValue("DATABASE_NAME").toString(), 
+			utils.getTagValue("DATABASE_USER").toString(), 
+			utils.getTagValue("DATABASE_PASS").toString()
+  		);
+  		resultado_iniciar_radar = initializeDecoders(
+			utils.getTagValue("RADAR_SERVER_IP").toString(), 
+			Integer.parseInt(utils.getTagValue("RADAR_SERVER_PUERTO").toString())		
+	  	);
+  	}
+  	else
+  	{
+  		database_host = "localhost";
+  		database_name = "cmca";
+  		database_user= "root";
+  		database_pass = "root";
+  		radar_ip = "239.192.86.0";
+  		radar_puerto = "8600";
+  		resultado_iniciar_bd = setDataBaseParams(
+			database_host,
+			database_name,
+			database_user,
+			database_pass
+  		);
+  		resultado_iniciar_radar = initializeDecoders(
+  			radar_ip, 
+  			Integer.parseInt(radar_puerto)	
+	  	);
+  	}
+  	db_connection_successful = resultado_iniciar_bd;
+  	database_server_msg = "[" + database_host + ": " + database_name+ "]";
+  	radar_server_msg = "[" + radar_ip + ": " + radar_puerto+ "]";
+  	
+  	Map<String,Object> result = new HashMap<String,Object>() {};
+  	result.put( "result", (resultado_iniciar_bd && resultado_iniciar_radar) );
+  	result.put( 
+		"msg", 
+		"" + 
+		( resultado_iniciar_bd ? "" : "No hay conexión con la base de datos " + database_server_msg + "." ) + 
+		( resultado_iniciar_radar ? "" : (resultado_iniciar_bd ? "\n" : "") + "No se pudo iniciar el monitoreo del radar " + radar_server_msg + ".") +
+		( resultado_leer_xml ? "\nVerifique el archivo de configuración " + utils.ARCHIVO_CONFIGURACION : "" )
+	);
+  	return result;
+  }
+  
+  final Runnable center_mexico = new Runnable() {
+	  public void run() 
+	  {
+		  centerMexico();
+	  }
+	};
+	
+	public void centerMexico()
+	{
+		centerMap(-100.000, 19);
+	}
+	
   final Runnable update_points = new Runnable() {
 	  public void run() {
 		  if(mission_ID!=0)
@@ -1095,9 +1242,9 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		return Double.parseDouble(prediction_time_minutes_spinner.getValue().toString());
 	}
 	
-	public void centerMap(double lat, double lng) 
+	public void centerMap(double lng, double lat) 
 	{
-		TLcdLonLatPoint mouse = new TLcdLonLatPoint(lat,lng);
+		TLcdLonLatPoint mouse = new TLcdLonLatPoint(lng, lat);
 		/*if(prediction_time_point != null)
 		{
 			mouse =  new TLcdLonLatPoint(prediction_time_point.getX(),prediction_time_point.getY());
@@ -1618,11 +1765,15 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   }
   //////////////////////////////////////////////////////////////////////////////////////////////////////
   
-  public void setMisionID(int ID) {
-	  System.out.println("setMisionID " + ID);
-	  conection.setId_mision(String.valueOf(ID));
-	  mission_ID = ID;
-	  return;
+  public void setMisionID(int ID) 
+  {
+	  if(db_connection_successful)
+	  {
+		  System.out.println("setMisionID " + ID);
+		  conection.setId_mision(String.valueOf(ID));
+		  mission_ID = ID;
+		  return;
+	  }
   }
   
   /**
@@ -3387,13 +3538,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   }
   
   //@Override
-  protected void initializeDecoders() {
+  protected boolean initializeDecoders(String radar_server_ip, int radar_server_puerto) {
 	  
     //Create and configure a live ASTERIX model decoder. This decoder reads data
     //from the specified input stream and updates the given modelList accordingly.
     TransformationProvider transformationProvider = getTransformationProvider();
 
-    fLiveDecodedModel = new LiveDecodedModel(transformationProvider, new LiveDecoderResultCallback(getView().getOverlayComponent()) {
+    fLiveDecodedModel = new LiveDecodedModel(radar_server_ip, radar_server_puerto, transformationProvider, new LiveDecoderResultCallback(getView().getOverlayComponent()) {
       @Override
       public void trackModelAdded(LiveDecodedModel aModel, ILcdModel aTrackModel) 
       {
@@ -3484,6 +3635,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     try {
       fLiveDecodedModel.startLiveDecoder();
       timer.scheduleAtFixedRate(deleteAsterixLayers, 5000, 5000, TimeUnit.MILLISECONDS);
+      return true;
     } catch (IOException e) {
     	 System.out.println("Error creando layer");
       TLcdUserDialog.message(
@@ -3492,6 +3644,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
           getView().getOverlayComponent(), 
           getView().getOverlayComponent()
       );
+      return false;
     }
   }
 

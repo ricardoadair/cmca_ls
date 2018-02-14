@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<signos>
+	<configuraciones>
+		<!--Ip radar Asterix-->
+		<radar_ip>239.192.86.0</radar_ip>
+		<!--Puerto radar Asterix-->
+		<radar_puerto>8600</radar_puerto>
+		<!--Dirección de base de datos-->
+		<database_host>localhost</database_host>
+		<!--Nombre de la base de datos -->
+		<database_name>cmca</database_name>
+		<!--Usuario de base de datos-->
+		<database_user>root</database_user>
+		<!--Passord de base de datos-->
+		<database_pass>root</database_pass>
+	</configuraciones>
+</signos>

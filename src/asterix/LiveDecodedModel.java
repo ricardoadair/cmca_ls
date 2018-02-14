@@ -50,6 +50,9 @@ public class LiveDecodedModel extends TLcdModelList {
  // Keep a large track history in memory. Some ASTERIX data is only sometimes available. Having a large track history
  // allows us to find this data in the track history. See for example ASTERIXTrackLabelContentProvider.
  private static final int TRACK_HISTORY = 200;
+ 
+ private String RADAR_SERVER_IP;// = "239.192.86.0";
+ private int RADAR_SERVER_PUERTO;// = 8600;
 
  private final TransformationProvider fTransformationProvider;
  //private final String fAsterixFile;
@@ -58,7 +61,10 @@ public class LiveDecodedModel extends TLcdModelList {
 
  private Timer fTimer;
 
- public LiveDecodedModel( TransformationProvider aTransformationProvider, final ResultCallback aCallback) {
+ public LiveDecodedModel( String radar_server_ip, int radar_server_puerto, TransformationProvider aTransformationProvider, final ResultCallback aCallback) 
+ {
+   this.RADAR_SERVER_IP = radar_server_ip; 
+   this.RADAR_SERVER_PUERTO = radar_server_puerto;
    fTransformationProvider = aTransformationProvider;
    //fAsterixFile = aAsterixFile;
    fCallback = aCallback;
@@ -185,8 +191,6 @@ public class LiveDecodedModel extends TLcdModelList {
  
  private class ASTERIXListener implements Runnable{
 	  byte[] buffer = new byte[128];
-	  int port = 8600;
-	  String ip = "239.192.86.0";
      MulticastSocket socket = null;
      DatagramPacket incomingDatagram;
      
@@ -194,8 +198,8 @@ public class LiveDecodedModel extends TLcdModelList {
 		  System.out.println("ASTERIXListener iniciado...");
 		try {
            // Se crea al grupo que recibirá los paquetes multicast
-			InetAddress group = InetAddress.getByName(ip);
-           socket = new MulticastSocket(port);
+			InetAddress group = InetAddress.getByName(RADAR_SERVER_IP);
+           socket = new MulticastSocket(RADAR_SERVER_PUERTO);
            socket.joinGroup(group);
            while(Boolean.TRUE) {
 				incomingDatagram = new DatagramPacket(buffer, buffer.length);
