@@ -196,6 +196,7 @@ public class LiveDecodedModel extends TLcdModelList {
      
 	  public void run() {
 		  System.out.println("ASTERIXListener iniciado...");
+		  System.out.println(RADAR_SERVER_IP+":"+RADAR_SERVER_PUERTO);
 		try {
            // Se crea al grupo que recibirá los paquetes multicast
 			InetAddress group = InetAddress.getByName(RADAR_SERVER_IP);

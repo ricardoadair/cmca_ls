@@ -155,6 +155,7 @@ public class LayerFactory extends ALspSingleLayerFactory {
            aModel.getModelDescriptor().getDisplayName().equals("Extruded solid shapes") ||
            aModel.getModelDescriptor().getDisplayName().equals("Points with icon") ||
            aModel.getModelDescriptor().getDisplayName().equals("Polyline") ||
+           aModel.getModelDescriptor().getDisplayName().equals("PolylineNoSelect") ||
            aModel.getModelDescriptor().getDisplayName().equals("Line") ||
            aModel.getModelDescriptor().getDisplayName().equals("Predicted"); 
   }
@@ -180,7 +181,9 @@ public class LayerFactory extends ALspSingleLayerFactory {
       setIconPath("");
       return layer;
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Polyline")){
-    	return createPolylineLayer(aModel);
+    	return createPolylineLayer(aModel, true);
+    } else if (aModel.getModelDescriptor().getDisplayName().equals("PolylineNoSelect")){
+    	return createPolylineLayer(aModel, false);
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Line")){
     	return createLineLayer(aModel);
     } else if (aModel.getModelDescriptor().getDisplayName().equals("Predicted")){
@@ -428,9 +431,9 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	    }                           
 	  }
   
-  	private ILspLayer createPolylineLayer(ILcdModel aModel) {
+  	private ILspLayer createPolylineLayer(ILcdModel aModel, boolean select) {
 	    return TLspShapeLayerBuilder.newBuilder().model(aModel)
-                .selectable(true)
+                .selectable(select)
                 .bodyEditable(true)
                 .bodyStyles(TLspPaintState.REGULAR, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())
                 .bodyStyles(TLspPaintState.SELECTED, TLspLineStyle.newBuilder().color(hex2Rgb(line_color)).width(2).build())

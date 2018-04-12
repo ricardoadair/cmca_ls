@@ -207,7 +207,9 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   private final Timer fTimer = new Timer(50, new InvalidateLabelsActionListener());
   private final SimulatorGXYLayerFactory fLiveTrackGXYLayerFactory = new SimulatorGXYLayerFactory();
   ILspLayer layer_asterix = null;
+  ILspLayer layer_polyline_asterix = null;
   private Map <String, TLcdASTERIXTrack>  tracks_asterix_objects = new HashMap<>();
+  private Map <String, TLcd3DEditablePointList>  tracks_asterix_polyline_objects = new HashMap<>();
   
   //LUCIAD Componets
   private Component navigationControls;
@@ -225,6 +227,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   //Tools panel
   JPanel tools_panel;
   JPanel tools_single_panel;
+  
+  //Radar
+  JCheckBox view_radar;
+  JCheckBox view_rute;
   
   //Distance
   JPanel distance_mode_panel;
@@ -1064,6 +1070,64 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	    distance_mode_panel.add(terrainModeCheckbox);
 	    //distance_mode_panel.setVisible(false);
 	    
+	    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////    
+	    JPanel menuRadar = new JPanel( new GridLayout( 2, 1 ) );
+	    TitledBorder menuRadarborder = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Radar",1,1,null,text_color);
+	    menuRadarborder.setBorder(new LineBorder(border_color, 1, true));
+	    menuRadar.setBorder(menuRadarborder);
+	    setColors(menuRadar);
+	    view_radar = new JCheckBox( "Ver Radar" );
+	    view_radar.setSelected(true);
+	    view_radar.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean active = e.getStateChange() == ItemEvent.SELECTED;
+	        if(layer_polyline_asterix != null)
+	        {
+		        if(active)
+		        {
+		        	view_rute.setEnabled(true);
+		        	layer_asterix.setVisible(true);
+		        	if(view_rute.isSelected() == true)
+		        	{
+		        		layer_polyline_asterix.setVisible(true);
+		        	}
+		        	else
+		        	{
+		        		layer_polyline_asterix.setVisible(false);
+		        	}
+		        }
+		        else
+		        {
+		        	view_rute.setEnabled(false);
+		        	layer_asterix.setVisible(false);
+		        	layer_polyline_asterix.setVisible(false);
+		        }
+	        }
+	      }
+	    });
+	    setColors(view_radar);
+	    view_rute = new JCheckBox( "Ver trayectoria" );
+	    view_rute.setSelected(true);
+	    view_rute.addItemListener(new ItemListener() {
+	      public void itemStateChanged(ItemEvent e) {
+	        boolean active = e.getStateChange() == ItemEvent.SELECTED;
+	        if(layer_polyline_asterix != null)
+	        {
+		        if(active)
+		        {
+		        	layer_polyline_asterix.setVisible(true);
+		        }
+		        else
+		        {
+		        	layer_polyline_asterix.setVisible(false);
+		        }
+	        }
+	      }
+	    });
+	    setColors(view_rute);
+	    menuRadar.add(view_radar);
+	    menuRadar.add(view_rute);
+	    
 		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		//Prediction Panel
 	    prediction_select_time_Checkbox = new JCheckBox( "Track seleccionado" );
@@ -1222,6 +1286,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	    tools_single_panel.add(mPanel);
 	    tools_single_panel.add(menuPredictionPanel);
 	    tools_single_panel.add(menuDistance);
+	    tools_single_panel.add(menuRadar);
+	    
 	    //tools_single_panel.add(distance_mode_panel);
 		
 		gbc.fill=GridBagConstraints.NORTH;
@@ -1229,9 +1295,9 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.insets=new Insets(0,0,0,0);
         menuPanel.add(show_hide_button, gbc);
-        gbc.insets=new Insets(10,0,0,0);
-        gbc.anchor=GridBagConstraints.NORTHWEST;
-        gbc.gridwidth = GridBagConstraints.REMAINDER;
+//        gbc.insets=new Insets(10,0,0,0);
+//        gbc.anchor=GridBagConstraints.NORTHWEST;
+//        gbc.gridwidth = GridBagConstraints.REMAINDER;
         //menuPanel.add(tools_single_panel, gbc);
         
 		return menuPanel;
@@ -3133,11 +3199,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	                if(prediction_all_tracks_mode && prediction_select_mode == false && type == 1 ) 
               		{
 	                	 Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_y, point_x, getPredictionTimeInMinutes(), course, speed);
-	                	  /*System.out.println(
-	                	    "prediction_all_tracks_mode(" + point_y + "," + point_x + ")" +
-	                	    "->" + 
-	                	    "(" + predicted_coords.get("latidude").toString() + "," + predicted_coords.get("longitude").toString() + ")"
-	                	  );*/
 	                	  
 	                	  prediction_time_point = new TLcdLonLatHeightPoint(
 	            			  Double.parseDouble(predicted_coords.get("longitude").toString()),
@@ -3177,11 +3238,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	                else if(prediction_select_mode && prediction_all_tracks_mode == false && ((int)tracks_list.get(t).get("ID")) == select_track_point_id && type == 1) 
                   	{
                 	  Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_y, point_x, getPredictionTimeInMinutes(), course, speed);
-                	  /*System.out.println(
-                	    "prediction_select_mode(" + point_y + "," + point_x + ")" +
-                	    "->" + 
-                	    "(" + predicted_coords.get("latidude").toString() + "," + predicted_coords.get("longitude").toString() + ")"
-                	  );*/
                 	  
                 	  prediction_time_point = new TLcdLonLatHeightPoint(
             			  Double.parseDouble(predicted_coords.get("longitude").toString()),
@@ -3408,9 +3464,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	      
 	      
 	  }
-	  /*catch(Exception e) {
-		  System.out.println(e.getMessage());
-	  }*/
 	  catch(SQLException q) {
 		  System.out.println("----- DATA BASE Exception -----");
 		  System.out.println(q.getMessage());
@@ -3517,6 +3570,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		  double lat = (Math.random()*(max_lat-min_lat+1)+min_lat)*(-1);
 		  double lng = Math.random()*(max_lng-min_lng+1)+min_lng;
 		  point_list_3d.insert3DPoint(p, new TLcdXYZPoint(lat,lng,0));
+		  System.out.println("Generando punto :" +lat+","+lng+","+0);
 	  }
 	  return point_list_3d;
   }
@@ -3566,6 +3620,19 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 			//System.out.println("Se creo layer de asterix");
 			
     	}
+    	if(layer_polyline_asterix == null)
+    	{
+    		layerFactory.setTextColor("#0036F5");
+    		layerFactory.setLineColor("#ffffff");
+    		layerFactory.setHaloColor("#000000");
+    		TLspCompositeLayerFactory factory = new TLspCompositeLayerFactory(layerFactory);
+			TLcdVectorModel model_polyline = new TLcdVectorModel(new TLcdGeodeticReference(), new TLcdModelDescriptor("Rutas Asterix", "PolylineNoSelect", "PolylineNoSelect"));
+			Collection<ILspLayer> layers_polyline = factory.createLayers(model_polyline);
+			layer_polyline_asterix = layers_polyline.iterator().next();
+			layerFactory.setDefautlsColor();
+			getView().addLayer(layer_polyline_asterix);
+			layer_polyline_asterix.getModel().removeAllElements(ILcdModel.FIRE_NOW);
+    	}
     	  
     	fTimer.setRepeats(true);
         fTimer.start();
@@ -3609,6 +3676,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     	  }
     	  //System.out.println("Asterix Layers: " + count);
     	  ILcdModel model = layer_asterix.getModel();
+    	  ILcdModel model_polyline = layer_polyline_asterix.getModel();
     	  for (TLcdASTERIXTrack at : asterix_tracks) 
     	  {
     		  if( tracks_asterix_objects.containsKey( at.toString() ) )
@@ -3618,15 +3686,61 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     			  original.move3D(at.getLon(), at.getLat(), at.getZ());
     			  tracks_asterix_objects.replace(at.toString(), original);
     	          model.elementChanged(original, ILcdModel.FIRE_LATER);
+    	          
+    	          TLcd3DEditablePointList polyline  = tracks_asterix_polyline_objects.get(at.toString());
+    	          polyline.insert3DPoint(polyline.getPointCount(), new TLcdXYZPoint( at.getLon(), at.getLat(), at.getZ() ));
+    	          ILcd3DEditablePointList polyline_object;
+    			  if (model_polyline.getModelReference() instanceof ILcdGeodeticReference) 
+    			  {
+    				  polyline_object = new TLcdLonLatHeightPolyline(polyline){
+			            @Override
+			            public String toString() {
+			              return " ";
+			            }
+			          };
+    		      } else {
+    		    	  polyline_object = new TLcdXYZPolyline(polyline){
+  			            @Override
+  			            public String toString() {
+  			              return " ";
+  			            }
+  			          };
+    		      }
+    	          tracks_asterix_polyline_objects.replace(at.toString(), polyline);
+    	          model_polyline.elementChanged(polyline_object, ILcdModel.FIRE_LATER);
     		  }
     		  else
     		  {
     			  tracks_asterix_objects.put(at.toString(), at);
     			  model.addElement(at, ILcdModel.FIRE_LATER);
+    			  
+    			  TLcd3DEditablePointList polyline = new TLcd3DEditablePointList();
+    			  polyline.insert3DPoint(0, new TLcdXYZPoint( at.getLon(), at.getLat(), at.getZ() ));
+    			  tracks_asterix_polyline_objects.put(at.toString(), polyline);
+    			  ILcd3DEditablePointList polyline_object;
+    			  if (model_polyline.getModelReference() instanceof ILcdGeodeticReference) 
+    			  {
+    				  polyline_object = new TLcdLonLatHeightPolyline(polyline){
+  			            @Override
+  			            public String toString() {
+  			              return " ";
+  			            }
+  			          };
+    		      } else {
+    		    	  polyline_object = new TLcdXYZPolyline(polyline){
+  			            @Override
+  			            public String toString() {
+  			              return " ";
+  			            }
+  			          };
+    		      }
+    			  model_polyline.addElement( polyline_object, ILcdModel.FIRE_LATER);
+    			  
     		  }
     	  }
     	  
     	  model.fireCollectedModelChanges();
+    	  model_polyline.fireCollectedModelChanges();
       }
       
     }
