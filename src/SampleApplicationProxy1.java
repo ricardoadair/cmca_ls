@@ -1692,9 +1692,9 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		rangos_armas_layer_id = addTrackLayerLine("Rangos de arma", "EPSG:4326");
 		layerFactory.setDefautlsColor();
 		//Predicted layer
-//		layerFactory.setTextColor("#211f01");
-//		layerFactory.setLineColor("#8e3004");
-//		layerFactory.setHaloColor("#ffffff");
+		layerFactory.setTextColor("#211f01");
+		layerFactory.setLineColor("#8e3004");
+		layerFactory.setHaloColor("#ffffff");
 //		layerFactory.setIconPath(track_icon_path);
 		track_layer_points_tracks_predicted = addTrackLayerPredicted("Traks layer Predicted", "EPSG:4326");
 //		layerFactory.setDefautlsColor();
@@ -2400,7 +2400,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         {
         	track.setValue(TrackDataTypes.CATEGORY, category);
         }
-        track.setValue(TrackDataTypes.LABEL, label);
+        if(track_layer_ac_id != aLayerId && track_layer_flir_id != aLayerId )
+        {
+        	track.setValue(TrackDataTypes.LABEL, label);
+        }
         model.addElement(track, ILcdModel.FIRE_LATER);
         addElementTrack(aTrackId,aX,aY,aZ);
       }
@@ -2419,14 +2422,31 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
    * @param aTimeStamp the new timestamp
    */
   public void updateTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, long aTimeStamp) {
+	  Map<String,Object> data = new HashMap<>();
+	  data.put("name", "");
+      data.put("description", ""); 
+      data.put("course", ""); 
+      data.put("speed", "");
+      data.put("category", ""); 
+	  updateTrack(aLayerId, aTrackId, aX, aY, aZ, aTimeStamp, data);
+  }
+  public void updateTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, long aTimeStamp, Map<String,Object> data) {
     ILspLayer layer = fTrackLayers.get(aLayerId);
     if (layer != null) {
       ILcdDataObject track = getTrack(aLayerId, aTrackId);
       if (track != null) {
         ILcdModel model = layer.getModel();
         try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
+          String course = data.containsKey("course") ? data.get("course").toString() : "";
+		  String speed = data.containsKey("speed") ? data.get("speed").toString() : "";
+		  String label = "(" + "A:" + Double.toString(aZ) + ","  + "C:" + course + "," + "V:" + speed + ")";	
+        	
           ((ILcd3DEditablePoint) track.getValue(TrackDataTypes.LOCATION)).move3D(aX, aY, aZ);
           //track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
+          if(track_layer_ac_id != aLayerId && track_layer_flir_id != aLayerId )
+          {	 
+        	  track.setValue(TrackDataTypes.LABEL, label);
+          }
           model.elementChanged(track, ILcdModel.FIRE_LATER);
           updateElement(aTrackId,aX,aY,aZ);
         }
@@ -3194,7 +3214,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	                  }
 	              	  else
 	              	  {
-	              		updateTrack(layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, point_z, 0);
+	              		updateTrack(layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, point_z, 0, data);
 	              	  }
 	                  
 	                //Prediccion de ubicación de todos los tracks
@@ -3231,7 +3251,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	                      	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
 	                      	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
 	                      	    point_z, 
-	                      	    0
+	                      	    0,
+	                      	    data
 	                      	  ); 
 	                		  updateLine(track_layer_points_tracks_predicted, Integer.parseInt(tracks_list.get(t).get("ID").toString() + "" + tracks_list.get(t).get("ID").toString() ), new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, 0);
 	                	  }
@@ -3270,7 +3291,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
                       	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
                       	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
                       	    point_z, 
-                      	    0
+                      	    0,
+                      	    data
                       	  ); 
                 		  updateLine(track_layer_points_tracks_predicted, -256, new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, 0);
                 	  }
@@ -3413,12 +3435,18 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
               data.put("name", "AC");
               data.put("description", "Posición AC");
 		      ILcdDataObject track = getTrack(track_layer_ac_id, track_ac_id);
+		      
+        	  double course = 0.0;
+        	  data.put("course", course);
+        	  double speed = 0.0;
+        	  data.put("speed", speed);
+        	  
 	          if (track == null) {
 	          	addTrack(track_layer_ac_id, track_ac_id, ac_point.getX(), ac_point.getY(), ac_point.getZ(), "AC", 0, data);
 	          }
 	      	  else
 	      	  {
-	      		updateTrack(track_layer_ac_id, track_ac_id, ac_point.getX(), ac_point.getY(), ac_point.getZ(), 0);
+	      		updateTrack(track_layer_ac_id, track_ac_id, ac_point.getX(), ac_point.getY(), ac_point.getZ(), 0, data);
 	      	  }
 	      }
 	      
@@ -3428,12 +3456,18 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
               data.put("name", "FLIR");
               data.put("description", "Posición Camara FLIR");
 		      ILcdDataObject track = getTrack(track_layer_flir_id, track_flir_id);
+		      
+		      double course = 0.0;
+        	  data.put("course", course);
+        	  double speed = 0.0;
+        	  data.put("speed", speed);
+        	  
 	          if (track == null) {
 	        	  addTrack(track_layer_flir_id, track_flir_id, flir_point.getX(), flir_point.getY(), flir_point.getZ(), "FLIR", 0, data);
 	          }
 	      	  else
 	      	  {
-	      		  updateTrack(track_layer_flir_id, track_flir_id, flir_point.getX(), flir_point.getY(), flir_point.getZ(), 0);
+	      		  updateTrack(track_layer_flir_id, track_flir_id, flir_point.getX(), flir_point.getY(), flir_point.getZ(), 0, data);
 	      	  }
 	      }
 	      
