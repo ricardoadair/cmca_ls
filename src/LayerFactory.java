@@ -403,9 +403,9 @@ public class LayerFactory extends ALspSingleLayerFactory {
 	                 )
 	                .labelStyles(
 	                		TLspPaintState.REGULAR, 
-	                		TLspTextStyle.newBuilder().haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
+	                		TLspTextStyle.newBuilder().alignment(TLspTextStyle.Alignment.CENTER).haloColor(hex2Rgb(halo_color)).textColor(hex2Rgb(text_color)).build(), 
 	                		TLspDataObjectLabelTextProviderStyle.newBuilder()
-	                            .expressions(TrackDataTypes.NAME)
+	                            .expressions(TrackDataTypes.NAME, TrackDataTypes.LABEL)
 	                            .build()
 	                );
 	    	 return layerBuilder.build();

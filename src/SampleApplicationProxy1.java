@@ -1692,12 +1692,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		rangos_armas_layer_id = addTrackLayerLine("Rangos de arma", "EPSG:4326");
 		layerFactory.setDefautlsColor();
 		//Predicted layer
-		layerFactory.setTextColor("#211f01");
-		layerFactory.setLineColor("#8e3004");
-		layerFactory.setHaloColor("#ffffff");
-		layerFactory.setIconPath(track_icon_path);
+//		layerFactory.setTextColor("#211f01");
+//		layerFactory.setLineColor("#8e3004");
+//		layerFactory.setHaloColor("#ffffff");
+//		layerFactory.setIconPath(track_icon_path);
 		track_layer_points_tracks_predicted = addTrackLayerPredicted("Traks layer Predicted", "EPSG:4326");
-		layerFactory.setDefautlsColor();
+//		layerFactory.setDefautlsColor();
 		paintPoints();
 	}
 	
@@ -2374,6 +2374,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         String course = data.containsKey("course") ? data.get("course").toString() : "";
         String speed = data.containsKey("speed") ? data.get("speed").toString() : "";
         String category = data.containsKey("category") ? data.get("category").toString() : "";
+        String label = "(" + "A:" + Double.toString(aZ) + ","  + "C:" + course + "," + "V:" + speed + ")";
         
         track.setValue(TrackDataTypes.ID, aTrackId);
         track.setValue(TrackDataTypes.LOCATION, location);
@@ -2399,6 +2400,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         {
         	track.setValue(TrackDataTypes.CATEGORY, category);
         }
+        track.setValue(TrackDataTypes.LABEL, label);
         model.addElement(track, ILcdModel.FIRE_LATER);
         addElementTrack(aTrackId,aX,aY,aZ);
       }
