@@ -40,6 +40,7 @@ import com.luciad.shape.shape2D.TLcd2DEditablePointList;
 import com.luciad.shape.shape2D.TLcdXYPoint;
 import com.luciad.shape.shape3D.ILcd3DEditablePoint;
 import com.luciad.shape.shape3D.TLcd3DEditablePointList;
+import com.luciad.shape.shape3D.TLcdLonLatHeightPoint;
 import com.luciad.shape.shape3D.TLcdXYZPoint;
 import com.luciad.transformation.TLcdDefaultModelXYWorldTransformation;
 import com.luciad.transformation.TLcdDefaultModelXYZWorldTransformation;
@@ -104,9 +105,7 @@ public class LightspeedViewProxy {
 
   public LightspeedViewProxy(long aNativePeer) {
     fNativePeer = aNativePeer;
-
     fView = TLspViewBuilder.newBuilder().buildExternalView();
-
     fView.getGLDrawable().invokeLater(aGLDrawable -> {
       fView.addViewInvalidationListener(aEvent -> LightspeedViewProxy.this.viewInvalidated(getNativePeer()));
       return false;
@@ -117,11 +116,11 @@ public class LightspeedViewProxy {
     
   }
   
-  public boolean setDataBaseParams(String XmlDataBase_host, String XmlDataBase_name, String XmlDataBase_user, String XmlDataBase_pass) 
+  public boolean setDataBaseParams(String XmlDataBase_host, String XmlDataBase_name, String XmlDataBase_user, String XmlDataBase_pass, String sql_version) 
   {
 	  try 
 	  {
-		  conection = new LuciadBDConnection(XmlDataBase_host, XmlDataBase_name, XmlDataBase_user, XmlDataBase_pass);
+		  conection = new LuciadBDConnection(XmlDataBase_host, XmlDataBase_name, XmlDataBase_user, XmlDataBase_pass, sql_version);
 		  return conection.testConnection();
 	  } 
 	  catch (ClassNotFoundException e) 
@@ -134,6 +133,7 @@ public class LightspeedViewProxy {
 	  }
 	  return false;
   }
+  
   
   /*public boolean setDataBaseParams() 
   {
@@ -284,9 +284,9 @@ public class LightspeedViewProxy {
     private boolean draw_polygon_mode = false;
     private TLcd3DEditablePointList paint_points = new TLcd3DEditablePointList();
     private int paint_points_count = 0;
-    private ILcdPoint mouse_position_lat_lng_point = null;
-    private ILcdPoint last_move_mouset_lat_lng_point = null;
-    private ILcdPoint last_clik_mouse_lat_lng_point = null;
+    private TLcdLonLatHeightPoint mouse_position_lat_lng_point = null;
+    private TLcdLonLatHeightPoint last_move_mouset_lat_lng_point = null;
+    private TLcdLonLatHeightPoint last_clik_mouse_lat_lng_point = null;
     
     //private LuciadBDConnection conection;
 
@@ -329,7 +329,7 @@ public class LightspeedViewProxy {
       if(aButtonId == MouseEvent.BUTTON1) {
     	  if (mouseEvent.getClickCount() == 1 && !mouseEvent.isConsumed()) {
     		  //e.consume();
-	    	  ILcdPoint lat_lng_point = convertPoint(mouseEvent.getPoint());
+    		  TLcdLonLatHeightPoint lat_lng_point = convertPoint(mouseEvent.getPoint());
 	    	  if(lat_lng_point != null) {
 	    		  if(draw_polygon_mode) {
 		    		  paint_points.insert3DPoint(paint_points_count, new TLcdXYZPoint(lat_lng_point.getX(),lat_lng_point.getY(), 0));
@@ -459,21 +459,21 @@ public class LightspeedViewProxy {
     	return draw_polygon_mode;
     }
     
-    public ILcdPoint getMousePosition() {
+    public TLcdLonLatHeightPoint getMousePosition() {
     	return mouse_position_lat_lng_point;
     }
     
-    public ILcdPoint getLastClickMousePosition() {
+    public TLcdLonLatHeightPoint getLastClickMousePosition() {
     	return last_clik_mouse_lat_lng_point;
     }
     
     //Convert Points function
-    private ILcdPoint convertPoint(Point aViewPoint) {
+    private TLcdLonLatHeightPoint convertPoint(Point aViewPoint) {
         ILcdModelReference modelReference;
 		try {
 			modelReference = new TLcdEPSGReferenceParser().parseModelReference("EPSG:4326");
 		    //ILcdPoint modelPoint = null;
-		    ILcdPoint modelPoint = null;
+			TLcdLonLatHeightPoint modelPoint = null;
 		    try {
 		      modelPoint = getCoordinates(aViewPoint, modelReference);
 		      return modelPoint;
@@ -487,22 +487,21 @@ public class LightspeedViewProxy {
 		}
 	  }
      
-    protected ILcdPoint getCoordinates(Point aAWTPoint, ILcdModelReference aReference) throws TLcdOutOfBoundsException { 
-		double scaleX = (double) fView.getWidth() / fView.getOverlayComponent().getWidth(); 
-		double scaleY = (double) fView.getHeight() / fView.getOverlayComponent().getHeight(); 
-	    ILcdPoint worldPoint = fView.getServices().getTerrainSupport().getPointOnTerrain( 
-	        new TLcdXYPoint(aAWTPoint.x * scaleX, aAWTPoint.y * scaleY), new TLspContext(null, fView)
-	    ); 
-	    if (worldPoint == null) { 
-	      return null; 
-	    } 
-	    TLcdXYZPoint modelPoint = new TLcdXYZPoint(); 
-	    TLcdDefaultModelXYZWorldTransformation transformation = new TLcdDefaultModelXYZWorldTransformation(); 
-	    transformation.setXYZWorldReference(fView.getXYZWorldReference()); 
-	    transformation.setModelReference(aReference); 
-	    transformation.worldPoint2modelSFCT(worldPoint, modelPoint); 
-	    return modelPoint; 
-    } 
+    protected TLcdLonLatHeightPoint getCoordinates(Point aAWTPoint, ILcdModelReference aReference) throws TLcdOutOfBoundsException {
+        double scaleX = (double) fView.getWidth() / fView.getOverlayComponent().getWidth();
+        double scaleY = (double) fView.getHeight() / fView.getOverlayComponent().getHeight();
+        ILcdPoint worldPoint = fView.getServices().getTerrainSupport().getPointOnTerrain(
+            new TLcdXYPoint(aAWTPoint.x * scaleX, aAWTPoint.y * scaleY), new TLspContext(null, fView));
+        if (worldPoint == null) {
+          return null;
+        }
+        TLcdLonLatHeightPoint modelPoint = new TLcdLonLatHeightPoint();
+        TLcdDefaultModelXYZWorldTransformation transformation = new TLcdDefaultModelXYZWorldTransformation();
+        transformation.setXYZWorldReference(fView.getXYZWorldReference());
+        transformation.setModelReference(aReference);
+        transformation.worldPoint2modelSFCT(worldPoint, modelPoint);
+        return modelPoint;
+      }
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
     
   }

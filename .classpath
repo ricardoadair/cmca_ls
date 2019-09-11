@@ -2,9 +2,9 @@
 <classpath>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/LuciadLS2017"/>
-	<classpathentry kind="lib" path="/home/cmca/LUCIAD/LuciadLightspeed_2017.0/licenses/development.jar"/>
-	<classpathentry kind="lib" path="/home/cmca/CMCA/workspace/json-simple-1.1.1.jar"/>
-	<classpathentry kind="lib" path="/home/cmca/CMCA/workspace/mysql-connector-java-5.1.23-bin.jar"/>
+	<classpathentry kind="lib" path="/home/lvc19892/CMCA/cmca_ls/lib/jdom-2.0.5.jar"/>
+	<classpathentry kind="lib" path="/home/lvc19892/CMCA/cmca_ls/lib/json-simple-1.1.1.jar"/>
+	<classpathentry kind="lib" path="/home/lvc19892/CMCA/cmca_ls/lib/mysql-connector-java-8.0.16.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/LS2018"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

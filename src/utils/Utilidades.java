@@ -90,6 +90,28 @@ public class Utilidades
 			  	}
 			}
 		);
+		put( 
+			"MYSQL_VERSION", 
+			new HashMap<String,Object>() 
+			{
+				{
+				    put("tag_name", "mysql_version");
+				    put("tag_type", "String");
+				    put("tag_value", "");
+			  	}
+			}
+		);
+		put( 
+			"MILITARY_SYMBOLOGY_IMAGE_PATH", 
+			new HashMap<String,Object>() 
+			{
+				{
+				    put("tag_name", "military_symbology_image_path");
+				    put("tag_type", "String");
+				    put("tag_value", "");
+			  	}
+			}
+		);
 	}
   };
 
@@ -199,6 +221,16 @@ public class Utilidades
 			printMap(toMap((JSONObject)object));
 		}
   	}
+  }
+  
+  public void printIntList(List<Integer> l)
+  {
+	System.out.print("[");
+	for (int object : l) 
+  	{
+		System.out.print( object + "," );
+  	}
+	System.out.println("]");
   }
   
   public static Map<String, Object> toMap(JSONObject jsonobj)

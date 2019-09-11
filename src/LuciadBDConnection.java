@@ -23,8 +23,13 @@ public class LuciadBDConnection {
     private String password = "";
     private String id_mision = "";
     private Connection connection = null;
+    //private String cadena_obtener_x = "ST_X";
+    //private String cadena_obtener_y = "ST_Y";
+    private String cadena_obtener_x = "X";
+    private String cadena_obtener_y = "Y";
+    private String sql_version = "";
 
-    /**
+	/**
      *
      * @param host the host location (locahost:port)
      * @param db_name the name of the database
@@ -38,12 +43,24 @@ public class LuciadBDConnection {
             String host,
             String db_name,
             String user,
-            String password) throws SQLException, ClassNotFoundException {
+            String password,
+            String sql_version
+    ) throws SQLException, ClassNotFoundException {
         Class.forName("com.mysql.jdbc.Driver");
+        this.sql_version = sql_version;
+        if(sql_version.equals("8.0"))
+		{
+			cadena_obtener_x = "ST_" + cadena_obtener_x;
+			cadena_obtener_y = "ST_" + cadena_obtener_y;
+		}
+        System.out.println("conectando....");
+        System.out.println("SQL version: " + sql_version);
         this.user = user;
         this.password = password;
-        this.url = String.format("jdbc:mysql://%s/%s", host, db_name);
+        this.url = String.format("jdbc:mysql://%s/%s" + ( sql_version.equals("8.0") ? "?useTimezone=true&serverTimezone=UTC" : "" ), host, db_name);
+        System.out.println("Obteniendo conexion");
         this.connection = getConnection();
+        System.out.println("conexion establecida");
     }
     
     public boolean testConnection()
@@ -76,11 +93,18 @@ public class LuciadBDConnection {
             String db_name,
             String user,
             String password,
+            String sql_version,
             String id_mision) throws SQLException, ClassNotFoundException {
         Class.forName("com.mysql.jdbc.Driver");
         this.user = user;
         this.password = password;
-        this.url = String.format("jdbc:mysql://%s/%s", host, db_name);
+        this.sql_version = sql_version;
+        if(sql_version.equals("8.0"))
+		{
+			cadena_obtener_x = "ST_" + cadena_obtener_x;
+			cadena_obtener_y = "ST_" + cadena_obtener_y;
+		}
+        this.url = String.format("jdbc:mysql://%s/%s" + ( sql_version.equals("8.0") ? "?useTimezone=true&serverTimezone=UTC" : "" ), host, db_name);
         this.id_mision = id_mision;
         this.connection = getConnection();
     }
@@ -104,6 +128,7 @@ public class LuciadBDConnection {
         this.connection.close();
     }
 
+    
     //--------------------------------------------------------------------------
     /**
      * Basic CRUD
@@ -200,13 +225,13 @@ public class LuciadBDConnection {
         List<JSONObject> tracks_list = new ArrayList<>();
         JSONParser parser = new JSONParser();
         PreparedStatement statement = connection.prepareStatement("SELECT "
-                + "ID,"
+                + "id_dato_tactico,"
                 + "id_mision,"
                 + "id_usuario,"
                 + "tipo_dato,"
                 + "origen,"
-                + "X(geoposicion),"
-                + "Y(geoposicion),"
+                + cadena_obtener_x + "(geoposicion),"
+                + cadena_obtener_y + "(geoposicion),"
                 + "elevacion,"
                 + "fecha_creacion,"
                 + "nombre,"
@@ -220,13 +245,13 @@ public class LuciadBDConnection {
         ResultSet queryresult = statement.executeQuery();
         while (queryresult.next()) {
             Map<String, Object> track = new HashMap<>();
-            track.put("ID", (Object) queryresult.getInt("ID"));
+            track.put("id_dato_tactico", (Object) queryresult.getInt("id_dato_tactico"));
             track.put("id_mision", (Object) queryresult.getInt("id_mision"));
             track.put("id_usuario", (Object) queryresult.getInt("id_usuario"));
             track.put("tipo_dato", (Object) queryresult.getInt("tipo_dato"));
             track.put("origen", (Object) queryresult.getInt("origen"));
-            track.put("x_geoposicion", queryresult.getFloat("X(geoposicion)"));
-            track.put("y_geoposicion", queryresult.getFloat("Y(geoposicion)"));
+            track.put("x_geoposicion", queryresult.getFloat( cadena_obtener_x + "(geoposicion)"));
+            track.put("y_geoposicion", queryresult.getFloat( cadena_obtener_y + "(geoposicion)"));
             track.put("elevacion", (Object) queryresult.getFloat("elevacion"));
             track.put("fecha_creacion", (Object) queryresult.getTimestamp("fecha_creacion"));
             track.put("nombre", (Object) queryresult.getString("nombre"));
@@ -247,24 +272,24 @@ public class LuciadBDConnection {
     }
 
     /**
-     * Get the Track that match with the ID
+     * Get the Track that match with the id_dato_tactico
      *
-     * @param ID the ID
+     * @param id_dato_tactico the id_dato_tactico
      * @return JSONObject with the information of the track or null if there no
-     * track that match with the ID
+     * track that match with the id_dato_tactico
      * @throws java.sql.SQLException
      */
-    public JSONObject getTrackbyID(int ID) throws SQLException {
+    public JSONObject getTrackbyID(int id_dato_tactico) throws SQLException {
         List<JSONObject> tracks_list = new ArrayList<>();
         JSONParser parser = new JSONParser();
         PreparedStatement statement = connection.prepareStatement("SELECT "
-                + "ID,"
+                + "id_dato_tactico,"
                 + "id_mision,"
                 + "id_usuario,"
                 + "tipo_dato,"
                 + "origen,"
-                + "X(geoposicion),"
-                + "Y(geoposicion),"
+                + cadena_obtener_x + "(geoposicion),"
+                + cadena_obtener_y + "(geoposicion),"
                 + "elevacion,"
                 + "fecha_creacion,"
                 + "nombre,"
@@ -272,21 +297,21 @@ public class LuciadBDConnection {
                 + "datos_json,"
                 + "visibilidad"
                 + " FROM dato_tactico "
-                + "WHERE ID = ? AND "
+                + "WHERE id_dato_tactico = ? AND "
                 + "id_mision = ? AND "
                 + "eliminado = 0");
-        statement.setInt(1, ID);
+        statement.setInt(1, id_dato_tactico);
         statement.setInt(2, Integer.parseInt(this.id_mision));
         ResultSet queryresult = statement.executeQuery();
         while (queryresult.next()) {
             Map<String, Object> track = new HashMap<>();
-            track.put("ID", (Object) queryresult.getInt("ID"));
+            track.put("id_dato_tactico", (Object) queryresult.getInt("id_dato_tactico"));
             track.put("id_mision", (Object) queryresult.getInt("id_mision"));
             track.put("id_usuario", (Object) queryresult.getInt("id_usuario"));
             track.put("tipo_dato", (Object) queryresult.getInt("tipo_dato"));
             track.put("origen", (Object) queryresult.getInt("origen"));
-            track.put("x_geoposicion", queryresult.getFloat("X(geoposicion)"));
-            track.put("y_geoposicion", queryresult.getFloat("Y(geoposicion)"));
+            track.put("x_geoposicion", queryresult.getFloat( cadena_obtener_x + "(geoposicion)"));
+            track.put("y_geoposicion", queryresult.getFloat( cadena_obtener_y + "(geoposicion)"));
             track.put("elevacion", (Object) queryresult.getFloat("elevacion"));
             track.put("fecha_creacion", (Object) queryresult.getTimestamp("fecha_creacion"));
             track.put("nombre", (Object) queryresult.getString("nombre"));
@@ -311,7 +336,7 @@ public class LuciadBDConnection {
     }
 
     /**
-     * Update the track that have the same ID
+     * Update the track that have the same id_dato_tactico
      *
      * @param track JSON Object that containt the information track;
      * @return true of false if the track was succesfuly updated
@@ -320,7 +345,7 @@ public class LuciadBDConnection {
     public boolean updateTrack(JSONObject track) throws SQLException {
 
         return updateTrack(
-                (int) track.get("ID"),
+                (int) track.get("id_dato_tactico"),
                 (int) track.get("id_mision"),
                 (int) track.get("id_usuario"),
                 (int) track.get("tipo_dato"),
@@ -335,9 +360,9 @@ public class LuciadBDConnection {
     }
 
     /**
-     * Update the track that have the same ID
+     * Update the track that have the same id_dato_tactico
      *
-     * @param ID
+     * @param id_dato_tactico
      * @param id_mision
      * @param id_usuario
      * @param tipo_dato
@@ -353,7 +378,7 @@ public class LuciadBDConnection {
      * @throws SQLException
      */
     public boolean updateTrack(
-            int ID,
+            int id_dato_tactico,
             int id_mision,
             int id_usuario,
             int tipo_dato,
@@ -378,7 +403,7 @@ public class LuciadBDConnection {
                         + "descripcion = ?,"
                         + "datos_json = ?,"
                         + "visibilidad = ? "
-                        + "WHERE ID = ?");
+                        + "WHERE id_dato_tactico = ?");
         statement.setInt(1, id_mision);
         statement.setInt(2, id_usuario);
         statement.setInt(3, tipo_dato);
@@ -390,7 +415,7 @@ public class LuciadBDConnection {
         statement.setString(9, descripcion);
         statement.setString(10, datos_json);
         statement.setString(11, visibilidad);
-        statement.setInt(12, ID);
+        statement.setInt(12, id_dato_tactico);
 
         int rows_updated = statement.executeUpdate();
         statement.close();
@@ -398,27 +423,27 @@ public class LuciadBDConnection {
     }
 
     /**
-     * Delete a track that match with the ID
+     * Delete a track that match with the id_dato_tactico
      *
      * @param track
      * @return
      * @throws SQLException
      */
     public boolean deleteTrack(JSONObject track) throws SQLException {
-        return deleteTrack((int) track.get("ID"));
+        return deleteTrack((int) track.get("id_dato_tactico"));
     }
 
     /**
-     * Delete a track that match with the ID
+     * Delete a track that match with the id_dato_tactico
      *
-     * @param ID
+     * @param id_dato_tactico
      * @return
      * @throws SQLException
      */
-    public boolean deleteTrack(int ID) throws SQLException {
+    public boolean deleteTrack(int id_dato_tactico) throws SQLException {
         PreparedStatement statement
-                = connection.prepareStatement("UPDATE dato_tactico set eliminado WHERE ID = ?");
-        statement.setInt(1, ID);
+                = connection.prepareStatement("UPDATE dato_tactico set eliminado WHERE id_dato_tactico = ?");
+        statement.setInt(1, id_dato_tactico);
         int rows_deleted = statement.executeUpdate();
         statement.close();
         return rows_deleted > 0;
@@ -578,15 +603,19 @@ public class LuciadBDConnection {
      */
     public List<JSONObject> getExtraPoints(JSONObject track) {
         JSONObject datos_json = (JSONObject) track.get("datos_json");
-        JSONObject puntos_extras = (JSONObject) datos_json.get("puntos_extras");
-        List<JSONObject> puntos = new ArrayList<>();
-        JSONArray points = (JSONArray) puntos_extras.get("puntos");
-        for (int i = 0; i < points.size(); i++) {
-            JSONObject point = (JSONObject) points.get(i);
-            int index = Integer.parseInt(point.get("index").toString());
-            puntos.add(index, point);
+        if(datos_json.containsKey("puntos_extras"))
+	    {
+	        JSONObject puntos_extras = (JSONObject) datos_json.get("puntos_extras");
+	        List<JSONObject> puntos = new ArrayList<>();
+	        JSONArray points = (JSONArray) puntos_extras.get("puntos");
+	        for (int i = 0; i < points.size(); i++) {
+	            JSONObject point = (JSONObject) points.get(i);
+	            int index = Integer.parseInt(point.get("index").toString());
+	            puntos.add(index, point);
+	        }
+	        return puntos;
         }
-        return puntos;
+        return  new ArrayList<>();
     }
 
     public void cleanAllExtraPoints(JSONObject track) {
@@ -620,6 +649,7 @@ public class LuciadBDConnection {
      * @param id_mision 
      */
     public void setId_mision(String id_mision) {
+    	System.out.println("Estableciendo misión: " + id_mision);
         this.id_mision = id_mision;
     }
 }

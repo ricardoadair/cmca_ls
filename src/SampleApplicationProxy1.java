@@ -173,9 +173,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   DecimalFormat df_line = new DecimalFormat("###,###.00"); 
   
   //Layers
-  int track_layer_points_tracks = 0;
+  boolean puntos_creados = false;
+  //int track_layer_points_tracks = 0;
+  //int track_layer_points_marks = 0;  
+  private static Map<Integer,Map<String, Object>> tracksLayers = new HashMap<>();
   int track_layer_points_tracks_predicted = 0;
-  int track_layer_points_marks = 0;
+
+  
   int rangos_armas_layer_id = 0;
   int track_layer_draw_polygons = 0;
   int polygon_user_clicks_track_id = -1;
@@ -184,11 +188,18 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   boolean update_styles = false;
   List<String> files_to_delete = new ArrayList<String>();
   String base_path = "";
-  String icon_folder_path = "data/Iconos/";
-  String track_icon_name = "Track.png";
-  String marca_icon_name = "Marca.png";
-  String ac_icon_name = "AC.png";
-  String flir_icon_name = "Pos_Camera.png";
+  String icon_folder_path_track = "QtCMCA/UI/Track/";
+  String icon_folder_path_marca = "QtCMCA/UI/Marca/";
+  String icon_folder_path_ac = "QtCMCA/UI/Aeronave/";
+  String icon_folder_path_flir = "QtCMCA/UI/FLIR/";
+  String icon_folder_path_military_symbology = "";
+  
+  String military_symbology_prefix = "Symb_2525_";
+  String track_icon_name = "Icon_Track_Normal.png";
+  String marca_icon_name = "Icon_Marca_Normal.png";
+  String ac_icon_name = "Icon_Aeronave_Normal.png";
+  String flir_icon_name = "Icon_FLIR_Normal.png";
+  
   String track_icon_path = "";
   String marck_icon_path = "";
   String ac_icon_path = "";
@@ -196,7 +207,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  
   //Dictionarys to Tracks Elements
   private final Map<Integer, ILspLayer> fTrackLayers;
-  private final Map<Integer, TLspLayerStyle> fTrackLayersStyles;
+  //private final Map<Integer, TLspLayerStyle> fTrackLayersStyles;
   private static Map<Integer,Map<String, Object>> fElementsTracks = new HashMap<>();
   private final Map<Integer, Map<String, Object >> fPolygonTrackLayers;
   private final AtomicInteger fAtomicInteger;
@@ -254,6 +265,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   TLcdLonLatHeightPoint prediction_time_point = null;
   
   //Polygon recording
+  private JButton star_rec = new JButton();
+  private JButton stop_rec = new JButton();
   static boolean draw_polygon_mode = false;
   private boolean create_polygon_user_clicks = false;
   int rec_polygon_id = -1;
@@ -379,7 +392,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     
     fAtomicInteger = new AtomicInteger();
     fTrackLayers = new HashMap<>();
-    fTrackLayersStyles = new HashMap<>();
+    //fTrackLayersStyles = new HashMap<>();
     fPolygonTrackLayers = new HashMap<>();
     
     Map <String,Object> result_init_config = iniciarConfiguraciones();
@@ -436,7 +449,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
       coords.setForeground(Color.BLACK);
       coords.setOpaque(true);
       overlay.add(coords);
-      layout.putConstraint(coords, TLcdOverlayLayout.Location.NORTH, TLcdOverlayLayout.ResolveClash.VERTICAL);
+      layout.putConstraint(coords, TLcdOverlayLayout.Location.SOUTH, TLcdOverlayLayout.ResolveClash.VERTICAL);
       
       PopupMenu jpop = new PopupMenu();
       jpop.add("uno");
@@ -482,12 +495,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     navigationUtil = new TLspViewNavigationUtil(getView());
     
     
-    if( (result_init_config.containsKey("result") ? (boolean)result_init_config.get("result") : false) == false ) 
-    {
+    //if( (result_init_config.containsKey("result") ? (boolean)result_init_config.get("result") : false) == false ) 
+    //{
     	timer_delete.schedule(center_mexico, 5, TimeUnit.SECONDS);
-    }
+    //}
 	timer.scheduleAtFixedRate(update_points, 1, 1, TimeUnit.SECONDS);
 	timer.scheduleAtFixedRate(update, 200, 200, TimeUnit.MILLISECONDS);
+	
+	timer.scheduleAtFixedRate(update_flir_ac, 1, 1, TimeUnit.SECONDS);
   }
   
   private boolean leerXml()
@@ -540,6 +555,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   	String database_name = "";
   	String database_user = "";
   	String database_pass = "";
+  	String sql_version = "";
   	String radar_ip = "";
   	String radar_puerto = "";
   	
@@ -552,11 +568,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   		database_name = utils.getTagValue("DATABASE_NAME").toString();
   		radar_ip = utils.getTagValue("RADAR_SERVER_IP").toString();
   		radar_puerto = utils.getTagValue("RADAR_SERVER_PUERTO").toString();
+  		icon_folder_path_military_symbology = utils.getTagValue("MILITARY_SYMBOLOGY_IMAGE_PATH").toString();
   		resultado_iniciar_bd = setDataBaseParams(
 			utils.getTagValue("DATABASE_HOST").toString(), 
 			utils.getTagValue("DATABASE_NAME").toString(), 
 			utils.getTagValue("DATABASE_USER").toString(), 
-			utils.getTagValue("DATABASE_PASS").toString()
+			utils.getTagValue("DATABASE_PASS").toString(),
+			utils.getTagValue("MYSQL_VERSION").toString()
   		);
   		resultado_iniciar_radar = initializeDecoders(
 			utils.getTagValue("RADAR_SERVER_IP").toString(), 
@@ -569,13 +587,17 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   		database_name = "cmca";
   		database_user= "root";
   		database_pass = "root";
+  		sql_version = "";
   		radar_ip = "239.192.86.0";
   		radar_puerto = "8600";
+  		icon_folder_path_military_symbology = "/home/lvc19892/CMCA/Data/SymbolsImage/MILSTD2525/";
+  		
   		resultado_iniciar_bd = setDataBaseParams(
 			database_host,
 			database_name,
 			database_user,
-			database_pass
+			database_pass,
+			sql_version
   		);
   		resultado_iniciar_radar = initializeDecoders(
   			radar_ip, 
@@ -598,6 +620,31 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   	return result;
   }
   
+  private float flir_ac_move = 0.01f;
+  final Runnable update_flir_ac = new Runnable() {
+	  public void run() 
+	  {
+		  if(ac_point == null)
+		  {
+			  ac_point = generateRandomPoint();
+		  }
+		  else
+		  {
+			  ac_point = new TLcdLonLatHeightPoint(ac_point.getLon()+flir_ac_move,ac_point.getLat()+flir_ac_move, 0);
+		  }
+		  if(flir_point == null)
+		  {
+			  flir_point = generateRandomPoint();
+		  }
+		  else
+		  {
+			  flir_point = new TLcdLonLatHeightPoint(flir_point.getLon()+flir_ac_move,flir_point.getLat()+flir_ac_move, 0);
+		  }
+		  setAc(ac_point.getLat()+","+ac_point.getLon());
+		  setFlir(flir_point.getLat()+","+flir_point.getLon());		  
+	  }
+  };
+  
   final Runnable center_mexico = new Runnable() {
 	  public void run() 
 	  {
@@ -607,7 +654,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	
 	public void centerMexico()
 	{
-		centerMap(-100.000, 19);
+		centerMap(19, -100.000);
 	}
 	
   final Runnable update_points = new Runnable() {
@@ -780,7 +827,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		//menuPanel.setBorder(BorderFactory.createEmptyBorder(0,0,0,0));
 		setColors(menuPanel);
 			
-		tools_single_panel = new JPanel(new GridLayout( 4, 1 ));
+		tools_single_panel = new JPanel(new GridLayout( 5, 1 ));
 		setColors(tools_single_panel);
 		//tools_single_panel.setVisible(false);
 		tools_single_panel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
@@ -1288,6 +1335,31 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	    tools_single_panel.add(menuDistance);
 	    tools_single_panel.add(menuRadar);
 	    
+	    //Test play and stop recording
+	    star_rec = new JButton("Start");
+	    stop_rec = new JButton("Stop");
+	    setColors(star_rec);
+	    setColors(stop_rec);
+	    star_rec.addActionListener(new ActionListener() 
+		{
+			public void actionPerformed(ActionEvent e) 
+			{
+				startRec(28);
+			}
+		});
+	    stop_rec.addActionListener(new ActionListener() 
+		{
+			public void actionPerformed(ActionEvent e) 
+			{
+				stopRec(28);
+			}
+		});
+	    JPanel panel_recording = new JPanel();
+	    setColors(panel_recording);
+	    panel_recording.add(star_rec);
+	    panel_recording.add(stop_rec);
+	    tools_single_panel.add(panel_recording);
+	    
 	    //tools_single_panel.add(distance_mode_panel);
 		
 		gbc.fill=GridBagConstraints.NORTH;
@@ -1308,7 +1380,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		return Double.parseDouble(prediction_time_minutes_spinner.getValue().toString());
 	}
 	
-	public void centerMap(double lng, double lat) 
+	public void centerMap(double lat, double lng ) 
 	{
 		TLcdLonLatPoint mouse = new TLcdLonLatPoint(lng, lat);
 		/*if(prediction_time_point != null)
@@ -1320,7 +1392,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 			navigationUtil.animatedCenter(mouse,new TLcdGeodeticReference());
 			//opacity(track_layer_points_tracks,1.0f);
 		} catch (TLcdOutOfBoundsException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -1353,21 +1424,20 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		navigationUtil.zoom(aFactor);
 	}
 	
-	float opacity = 1.0f;
 	public void opacity(int aLayerId, float newOpacity) {
-	    	    opacity = opacity - 0.1f;
-	    	    System.out.println( "newOpacity: " + opacity );	    
-	    	    TLspLayerStyle layerStyle = fTrackLayersStyles.get(aLayerId); 	
-	    	    TLspLayerStyle new_layerStyle = layerStyle.asBuilder().opacity(opacity).build();
-	    	    fTrackLayersStyles.replace(aLayerId, new_layerStyle );
-	    	    getView().getLayer(aLayerId).setLayerStyle(new_layerStyle);
-	    	    /*TLspRulerSegmentLabelContentStyle segmentContentStyle = (TLspRulerSegmentLabelContentStyle) fSegmentLabelContentStyle.getStyle();
-	            fSegmentLabelContentStyle.setStyle(segmentContentStyle.asBuilder().distanceFormat(distanceFormat).build());*/
+		float opacity = 1.0f;
+	    System.out.println( "newOpacity: " + opacity );	    
+	    TLspLayerStyle layerStyle = fTrackLayers.get(aLayerId).getLayerStyle(); 	
+	    TLspLayerStyle new_layerStyle = layerStyle.asBuilder().opacity(opacity).build();
+	    //fTrackLayersStyles.replace(aLayerId, new_layerStyle );
+	    getView().getLayer(aLayerId).setLayerStyle(new_layerStyle);
+	    /*TLspRulerSegmentLabelContentStyle segmentContentStyle = (TLspRulerSegmentLabelContentStyle) fSegmentLabelContentStyle.getStyle();
+        fSegmentLabelContentStyle.setStyle(segmentContentStyle.asBuilder().distanceFormat(distanceFormat).build());*/
 	}
 	
 	public void updateCoords()
 	{
-		ILcdPoint mouse_position = fMouseEventHandler.getMousePosition();
+		TLcdLonLatHeightPoint mouse_position = fMouseEventHandler.getMousePosition();
 		String new_coords = "";
 		String ac_coords = "";
 		String mouse_coords = "";
@@ -1375,38 +1445,38 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		  if(default_unit_location == unity_id_GD)
 		  {
 			  if(ac_point != null) 
-				  ac_coords = df.format(ac_point.getX()) + "," + df.format(ac_point.getY());
+				  ac_coords = df.format(ac_point.getLat()) + "," + df.format(ac_point.getLon());
 			  if(mouse_position != null) 
-				  mouse_coords = df.format(mouse_position.getX()) + "," + df.format(mouse_position.getY());
+				  mouse_coords = df.format(mouse_position.getLat()) + "," + df.format(mouse_position.getLon());
 			  if(flir_point != null) 
-				  flir_coords = df.format(flir_point.getX()) + "," + df.format(flir_point.getY());
+				  flir_coords = df.format(flir_point.getLat()) + "," + df.format(flir_point.getLon());
 		  }
 		  else if(default_unit_location == unity_id_GMS)
 		  { 
 			  if(ac_point != null) 
-				  ac_coords = getFormatDMS(ac_point.getY(), ac_point.getX());
+				  ac_coords = getFormatDMS(ac_point.getLat(), ac_point.getLon());
 			  if(mouse_position != null) 
-				  mouse_coords = getFormatDMS(mouse_position.getY(), mouse_position.getX());
+				  mouse_coords = getFormatDMS(mouse_position.getLat(), mouse_position.getLon());
 			  if(flir_point != null) 
-				  flir_coords = getFormatDMS(flir_point.getY(), flir_point.getX());
+				  flir_coords = getFormatDMS(flir_point.getLat(), flir_point.getLon());
 		  }
 		  else if(default_unit_location == unity_id_UTM)
 		  {
 			  if(ac_point != null) 
-				  ac_coords = getFormatUTM(ac_point.getY(), ac_point.getX());
+				  ac_coords = getFormatUTM(ac_point.getLat(), ac_point.getLon());
 			  if(mouse_position != null) 
-				  mouse_coords = getFormatUTM(mouse_position.getY(), mouse_position.getX());
+				  mouse_coords = getFormatUTM(mouse_position.getLat(), mouse_position.getLon());
 			  if(flir_point != null) 
-				  flir_coords = getFormatUTM(flir_point.getY(), flir_point.getX());
+				  flir_coords = getFormatUTM(flir_point.getLat(), flir_point.getLon());
 		  }
 		  else if(default_unit_location == unity_id_MGRS)
 		  {
 			  if(ac_point != null) 
-				  ac_coords = getFormatMGRS(ac_point.getY(), ac_point.getX());
+				  ac_coords = getFormatMGRS(ac_point.getLat(), ac_point.getLon());
 			  if(mouse_position != null) 
-				  mouse_coords = getFormatMGRS(mouse_position.getY(), mouse_position.getX());
+				  mouse_coords = getFormatMGRS(mouse_position.getLat(), mouse_position.getLon());
 			  if(flir_point != null) 
-				  flir_coords = getFormatMGRS(flir_point.getY(), flir_point.getX());
+				  flir_coords = getFormatMGRS(flir_point.getLat(), flir_point.getLon());
 		  }
 			
 		  new_coords = ( 
@@ -1425,22 +1495,22 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	public void update_icons_path() {
 		track_icon_path = (
 			( base_path.endsWith("/") ? base_path : base_path + "/" ) + 
-			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			( icon_folder_path_track.endsWith("/") ? icon_folder_path_track : icon_folder_path_track + "/" ) +
 			track_icon_name
 		);
 		marck_icon_path = (
 			( base_path.endsWith("/") ? base_path : base_path + "/" )+ 
-			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			( icon_folder_path_marca.endsWith("/") ? icon_folder_path_marca : icon_folder_path_marca + "/" ) +
 			marca_icon_name
 		);
 		ac_icon_path = (
 			( base_path.endsWith("/") ? base_path : base_path + "/" )+ 
-			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			( icon_folder_path_ac.endsWith("/") ? icon_folder_path_ac : icon_folder_path_ac + "/" ) +
 			ac_icon_name
 		);
 		flir_icon_path = (
 			( base_path.endsWith("/") ? base_path : base_path + "/" )+ 
-			( icon_folder_path.endsWith("/") ? icon_folder_path : icon_folder_path + "/" ) +
+			( icon_folder_path_flir.endsWith("/") ? icon_folder_path_flir : icon_folder_path_flir + "/" ) +
 			flir_icon_name
 		);
 		System.out.println("Track icon " + ( new File(track_icon_path).exists() ? "Correct: " : "Error: " ) + track_icon_path);
@@ -1454,8 +1524,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		update_styles = true;
 		update_icons_path();
 		System.out.println("updateAllIconStyles");
-		updateTracksIconStyle();
-		updateMarcksIconStyle();
+		//updateTracksIconStyle();
+		//updateMarcksIconStyle();
 		updateAcIconStyle();
 		updateFlirIconStyle();
 		update_styles = false;
@@ -1499,65 +1569,65 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		}
 	}
 	
-	public void updateTracksIconStyle() 
-	{
-		//Tracks
-		int id_layer = track_layer_points_tracks;
-		String icon_path = track_icon_path;
-		
-		removeTrackLayer(id_layer);
-		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
-		System.out.println("updateTracksIconStyle " + new_icon_path);
-		FileCopy(icon_path, new_icon_path);
-		layerFactory.setIconPath(new_icon_path);
-		id_layer = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
-		files_to_delete.add(new_icon_path);
-		
-		track_layer_points_tracks = id_layer;
-	}
+//	public void updateTracksIconStyle() 
+//	{
+//		//Tracks
+//		int id_layer = track_layer_points_tracks;
+//		String icon_path = track_icon_path;
+//		
+//		removeTrackLayer(id_layer);
+//		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
+//		System.out.println("updateTracksIconStyle " + new_icon_path);
+//		FileCopy(icon_path, new_icon_path);
+//		layerFactory.setIconPath(new_icon_path);
+//		id_layer = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
+//		files_to_delete.add(new_icon_path);
+//		
+//		track_layer_points_tracks = id_layer;
+//	}
 	
-	public void updateTracksIconStyle(String new_icon_path) 
-	{
-		//Tracks
-		int id_layer = track_layer_points_tracks;
-		
-		removeTrackLayer(id_layer);
-		System.out.println("updateTracksIconStyle " + new_icon_path);
-		layerFactory.setIconPath(new_icon_path);
-		id_layer = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
-		
-		track_layer_points_tracks = id_layer;
-	}
+//	public void updateTracksIconStyle(String new_icon_path) 
+//	{
+//		//Tracks
+//		int id_layer = track_layer_points_tracks;
+//		
+//		removeTrackLayer(id_layer);
+//		System.out.println("updateTracksIconStyle " + new_icon_path);
+//		layerFactory.setIconPath(new_icon_path);
+//		id_layer = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
+//		
+//		track_layer_points_tracks = id_layer;
+//	}
 	
-	public void updateMarcksIconStyle() 
-	{
-		//Marks
-		int id_layer = track_layer_points_marks;
-		String icon_path = marck_icon_path;
-		
-		removeTrackLayer(id_layer);
-		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
-		System.out.println("updateMarcksIconStyle " + new_icon_path);
-		FileCopy(icon_path, new_icon_path);
-		layerFactory.setIconPath(new_icon_path);
-		id_layer = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
-		files_to_delete.add(new_icon_path);
-		
-		track_layer_points_marks = id_layer;
-	}
+//	public void updateMarcksIconStyle() 
+//	{
+//		//Marks
+//		int id_layer = track_layer_points_marks;
+//		String icon_path = marck_icon_path;
+//		
+//		removeTrackLayer(id_layer);
+//		String new_icon_path = icon_path.substring(0, icon_path.lastIndexOf("."))+ "_new" + System.nanoTime() + icon_path.substring(icon_path.lastIndexOf("."));
+//		System.out.println("updateMarcksIconStyle " + new_icon_path);
+//		FileCopy(icon_path, new_icon_path);
+//		layerFactory.setIconPath(new_icon_path);
+//		id_layer = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
+//		files_to_delete.add(new_icon_path);
+//		
+//		track_layer_points_marks = id_layer;
+//	}
 	
-	public void updateMarcksIconStyle(String new_icon_path) 
-	{
-		//Tracks
-		int id_layer = track_layer_points_marks;
-		
-		removeTrackLayer(id_layer);
-		System.out.println("updateMarcksIconStyle " + new_icon_path);
-		layerFactory.setIconPath(new_icon_path);
-		id_layer = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
-		
-		track_layer_points_marks = id_layer;
-	}
+//	public void updateMarcksIconStyle(String new_icon_path) 
+//	{
+//		//Tracks
+//		int id_layer = track_layer_points_marks;
+//		
+//		removeTrackLayer(id_layer);
+//		System.out.println("updateMarcksIconStyle " + new_icon_path);
+//		layerFactory.setIconPath(new_icon_path);
+//		id_layer = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
+//		
+//		track_layer_points_marks = id_layer;
+//	}
 	
 	public void updateAcIconStyle() 
 	{
@@ -1625,10 +1695,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		ac = new_ac;
 		if(!ac.equals("") && ac.contains(",")) {
 			String[] split = ac.split(",");
-			double x = Double.parseDouble(split[0]);
-			double y = Double.parseDouble(split[1]);
-			double z = split.length > 2 ? Double.parseDouble(split[2]) *1000 : 0.0; //m.
-			ac_point = new TLcdLonLatHeightPoint(x,y,z);
+			double latitude = Double.parseDouble(split[0]);
+			double longitud = Double.parseDouble(split[1]);
+			double altura = split.length > 2 ? Double.parseDouble(split[2]) *1000 : 0.0; //m.
+			ac_point = new TLcdLonLatHeightPoint(longitud, latitude, altura);
 			//System.out.println(ac_point);
 		}
 	}
@@ -1638,10 +1708,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		flir = new_flir;
 		if(!flir.equals("") && flir.contains(",")) {
 			String[] split = flir.split(",");
-			double x = Double.parseDouble(split[0]);
-			double y = Double.parseDouble(split[1]);
-			double z = split.length > 2 ? Double.parseDouble(split[2]) *1000 : 0.0; //m.
-			flir_point = new TLcdLonLatHeightPoint(x,y,z);
+			double latitude = Double.parseDouble(split[0]);
+			double longitud = Double.parseDouble(split[1]);
+			double altura = split.length > 2 ? Double.parseDouble(split[2]) *1000 : 0.0; //m.
+			flir_point = new TLcdLonLatHeightPoint(longitud, latitude, altura);
 			//System.out.println(flir_point);
 		}
 	}
@@ -1660,9 +1730,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	{
 		if( update_styles == false)
 		{
-			  if(track_layer_points_tracks == 0 && track_layer_points_marks == 0) 
+			  //if(track_layer_points_tracks == 0 && track_layer_points_marks == 0)
+			  if(puntos_creados == false)
 			  {
-				  create_points();
+				  try {
+					create_points();
+				  } 
+				  catch (SQLException e) {
+				  }
 			  }
 			  else
 			  {
@@ -1670,14 +1745,80 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 			  }
 		}
 	}
+	
+//	public int addTrackMarckLayer(String layer_name, int type, int id_track)
+//	{
+//		return addTrackMarckLayer( layer_name, type, id_track, "1", "1" );
+//	}
+	
+	public int addTrackMarckLayer(String layer_name, int type, int id_track, String identidad, String categoria)
+	{
+		int track_marck_layer_id;
+		String path_MILSTD2525 = icon_folder_path_military_symbology + military_symbology_prefix ;
+    	if(type == 1)
+    	{
+    		path_MILSTD2525 += "T" + identidad + "_0" + categoria;
+        	//Tracks
+    		if(new File(path_MILSTD2525).exists() == false) 
+    		{
+    			System.out.println("No existe: "+ path_MILSTD2525);
+    			path_MILSTD2525 = track_icon_path;
+    		}
+    	}
+    	else
+    	{
+    		path_MILSTD2525 += "M" + identidad + "_0" + categoria;
+    		//Marks
+    		if(new File(path_MILSTD2525).exists() == false) 
+    		{
+    			System.out.println("No existe: "+ path_MILSTD2525);
+    			path_MILSTD2525 = marck_icon_path;
+    		}
+    	}
+
+    	layerFactory.setIconPath(path_MILSTD2525);
+		//track_layer_points_marks = addTrackLayerPointWithIcon("Tracks/Marks layer", "EPSG:4326");
+		track_marck_layer_id = addTrackLayerPointWithIcon(layer_name, "EPSG:4326");
 		
-	public void create_points() {
-		//Tracks
-		layerFactory.setIconPath(track_icon_path);
-		track_layer_points_tracks = addTrackLayerPointWithIcon("Traks layer", "EPSG:4326");
-		//Marks
-		layerFactory.setIconPath(marck_icon_path);
-		track_layer_points_marks = addTrackLayerPointWithIcon("Marks layer", "EPSG:4326");
+    	tracksLayers.put(
+    	   id_track, 
+		   new HashMap<String,Object>() {
+    	   {
+    			   put("type", type);
+    			   put("layer_id", track_marck_layer_id);
+		  	  }
+		   }
+    	);
+    	return track_marck_layer_id;
+	}
+		
+	public void create_points() throws SQLException {
+		List<JSONObject> tracks_list = conection.getTracks();
+		for(int t=0; t < tracks_list.size(); t++ )
+		{
+			
+			int type = (int)tracks_list.get(t).get("tipo_dato");
+            if(type == 1 || type == 2)
+            {
+            	int id_track = (int) tracks_list.get(t).get("id_dato_tactico");
+            	String layer_name = ((JSONObject)tracks_list.get(t)).get("nombre").toString();
+            	
+            	JSONObject datos_json = (JSONObject) ((JSONObject)tracks_list.get(t)).get("datos_json");
+            	String categoria = "1";
+            	String identidad = "1";
+            	if(datos_json.containsKey("categoria"))
+            	{
+            		categoria = datos_json.get("categoria").toString();  
+            	}
+            	if(datos_json.containsKey("identidad"))
+            	{
+            		identidad = datos_json.get("identidad").toString();  
+            	}
+            	
+            	addTrackMarckLayer(layer_name, type, id_track, identidad, categoria);
+            }
+		}
+
 		layerFactory.setTextColor("#f45c42");
 		//AC
 		layerFactory.setIconPath(ac_icon_path);
@@ -1697,6 +1838,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		layerFactory.setHaloColor("#ffffff");
 //		layerFactory.setIconPath(track_icon_path);
 		track_layer_points_tracks_predicted = addTrackLayerPredicted("Traks layer Predicted", "EPSG:4326");
+		puntos_creados = true;
 //		layerFactory.setDefautlsColor();
 		paintPoints();
 	}
@@ -1765,7 +1907,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   
   public void setVisibleLayer(int visible,String aSource)
 	{
-	   System.out.println("JAVAVIS: " + aSource + ": " + visible);
+	   System.out.println("JAVAVIS: " + aSource + ": " + visible); 
 	
 		boolean b_vis=false;
 		if (visible==1)
@@ -1867,7 +2009,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 			}
 			
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	  return;
@@ -1895,7 +2036,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 			conection.cleanAllExtraPoints(track);
 			for(int p = 0; p < clicks_points.getPointCount();p++) {
 			  ILcdPoint point = clicks_points.getPoint(p);
-			  conection.insertExtraPoint(track, (float) point.getX(), (float)point.getY());
+			  conection.insertExtraPoint(track, (float) point.getY(), (float)point.getX());
 			}
 			conection.updateTrack(track);
 			fMouseEventHandler.clearPaintPoints();
@@ -1903,7 +2044,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 			updatePolygon(track_layer_draw_polygons, polygon_user_clicks_track_id, fMouseEventHandler.getPaintPoints(), 0);
 			create_polygon_user_clicks = false;
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	  rec_polygon_id = -1;
@@ -1937,7 +2077,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 			  boolean ac = distance_ac_Checkbox.isSelected();
 			  boolean flir = distance_flir_Checkbox.isSelected();
 			  boolean select_track = distance_select_track_Checkbox.isSelected();
-			  ILcdPoint mouse_position = fMouseEventHandler.getMousePosition();
+			  TLcdLonLatHeightPoint mouse_position = fMouseEventHandler.getMousePosition();
 			  if(ac) 
 			  {
 				if(create_line_ac == false) 
@@ -2200,7 +2340,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  }
       int layerId = fAtomicInteger.incrementAndGet();
       fTrackLayers.put(layerId, layer);
-      fTrackLayersStyles.put(layerId, layer.getLayerStyle());
+      //fTrackLayersStyles.put(layerId, layer.getLayerStyle());
       
       // View operations need to be executed on the paint thread.
       getView().getGLDrawable().invokeLater((gl) -> {
@@ -2237,7 +2377,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     ILspLayer layer = fTrackLayers.get(aLayerId);
     if (layer != null) {
       fTrackLayers.remove(aLayerId);
-      fTrackLayersStyles.remove(aLayerId);
+      //fTrackLayersStyles.remove(aLayerId);
       // View operations need to be executed on the paint thread.
       getView().getGLDrawable().invokeLater((gl) -> {
         getView().removeLayer(layer);
@@ -2246,53 +2386,53 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     }
   }
   
-  public void addElementTrack(int id, double lon, double lat, double heigth) 
+  public void addElementTrack(int id, double latitude, double longitud, double altura) 
   {
-	  addElementTrack(id, lon, lat, heigth, "Track");
+	  addElementTrack(id, latitude, longitud, altura, "Track");
   }
   
-  public void addElementPolygon(int id, double lon, double lat, double heigth) 
+  public void addElementPolygon(int id, double latitude, double longitud, double altura) 
   {
-	  addElementTrack(id, lon, lat, heigth, "Polygon");
+	  addElementTrack(id, latitude, longitud, altura, "Polygon");
   }
   
-  public void addElementPolyline(int id, double lon, double lat, double heigth) 
+  public void addElementPolyline(int id, double latitude, double longitud, double altura) 
   {
-	  addElementTrack(id, lon, lat, heigth, "Polyline");
+	  addElementTrack(id, latitude, longitud, altura, "Polyline");
   }
   
-  public void addElementLine(int id, double lon, double lat, double heigth) 
+  public void addElementLine(int id, double latitude, double longitud, double altura) 
   {
-	  addElementTrack(id, lon, lat, heigth, "Line");
+	  addElementTrack(id, latitude, longitud, altura, "Line");
   }
   
-  public void addElementCircle(int id, double lon, double lat, double heigth) 
+  public void addElementCircle(int id, double latitude, double longitud, double altura) 
   {
-	  addElementTrack(id, lon, lat, heigth, "Circle");
+	  addElementTrack(id, latitude, longitud, altura, "Circle");
   }
   
-  public void addElementTrack(int id, double lon, double lat, double heigth, String type) 
+  public void addElementTrack(int id, double latitude, double longitud, double altura, String type) 
   {
 	  fElementsTracks.put(
 			  id, 
 			  new HashMap<String,Object>() {
 				  {
 					  	put("type", type);
-						put("lon", lon);
-						put("lat", lat);
-						put("heigth", heigth);
+					  	put("latitude", latitude);
+					  	put("longitud", longitud);
+						put("altura", altura);
 			  	  }
 			  }
 	  );
   }
   
-  public void updateElement(int id, double lon, double lat, double heigth) 
+  public void updateElement(int id, double latitude, double longitud, double altura) 
   {
 	  if(fElementsTracks.containsKey(id))
 	  {
-		  fElementsTracks.get(id).replace("lon", lon);
-		  fElementsTracks.get(id).replace("lat", lat);
-		  fElementsTracks.get(id).replace("heigth", heigth);
+		  fElementsTracks.get(id).replace("latitude", latitude);
+ 		  fElementsTracks.get(id).replace("longitud", longitud);
+		  fElementsTracks.get(id).replace("altura", altura);
 	  }
   }
   
@@ -2323,30 +2463,20 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  }
   }
   
-  
-  /**
-   * Adds a new track with the specified properties to the specified track layer.
-   *
-   * @param aLayerId the identifier of the track layer
-   * @param aTrackId the identifier for the track
-   * @param aX the X coordinate
-   * @param aY the Y coordinate
-   * @param aZ the Z coordinate
-   * @param aCallSign the call sign
-   * @param aTimeStamp the time stamp
-   */
-  public void addTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, String aCallSign, long aTimeStamp)
+
+  public void addTrack(int aLayerId, int aTrackId, double latitude, double longitud, double altura, String aCallSign, long aTimeStamp)
   {
 	  Map<String,Object> data = new HashMap<>();
 	  data.put("name", "");
       data.put("description", ""); 
       data.put("course", ""); 
       data.put("speed", "");
-      data.put("category", ""); 
-      addTrack(aLayerId, aTrackId, aX, aY, aZ, aCallSign, aTimeStamp, data);
+      data.put("category", "");
+      data.put("identity", ""); 
+      addTrack(aLayerId, aTrackId, latitude, longitud, altura, aCallSign, aTimeStamp, data);
   }
   
-  public void addTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, String aCallSign, long aTimeStamp, Map<String,Object> data) {
+  public void addTrack(int aLayerId, int aTrackId, double latitude, double longitud, double altura, String aCallSign, long aTimeStamp, Map<String,Object> data) {
     ILspLayer layer = fTrackLayers.get(aLayerId);
     if (layer != null) {
       ILcdModel model = layer.getModel();
@@ -2354,14 +2484,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         TLcdDataObject track = new TLcdDataObject(TrackDataTypes.TRACK_PLAN_DATA_TYPE);
         ILcd3DEditablePoint location;
         if (model.getModelReference() instanceof ILcdGeodeticReference) {
-          location = new TLcdLonLatHeightPoint(aX, aY, aZ) {
+          location = new TLcdLonLatHeightPoint(longitud, latitude, altura) {
             @Override
             public String toString() {
               return getFormattedTrackLocation(this);
             }
           };
         } else {
-          location = new TLcdXYZPoint(aX, aY, aZ) {
+          location = new TLcdXYZPoint(longitud, latitude, altura){
             @Override
             public String toString() {
               return getFormattedTrackLocation(this);
@@ -2374,7 +2504,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         String course = data.containsKey("course") ? data.get("course").toString() : "";
         String speed = data.containsKey("speed") ? data.get("speed").toString() : "";
         String category = data.containsKey("category") ? data.get("category").toString() : "";
-        String label = "(" + "A:" + Double.toString(aZ) + ","  + "C:" + course + "," + "V:" + speed + ")";
+        String identity = data.containsKey("identity") ? data.get("identity").toString() : "";
+        String label = "(" + "A:" + Double.toString(altura) + ","  + "C:" + course + "," + "V:" + speed + ")";
         
         track.setValue(TrackDataTypes.ID, aTrackId);
         track.setValue(TrackDataTypes.LOCATION, location);
@@ -2400,37 +2531,33 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         {
         	track.setValue(TrackDataTypes.CATEGORY, category);
         }
+        if(!identity.equals(""))
+        {
+        	track.setValue(TrackDataTypes.IDENTITY, identity);
+        }
         if(track_layer_ac_id != aLayerId && track_layer_flir_id != aLayerId )
         {
         	track.setValue(TrackDataTypes.LABEL, label);
         }
         model.addElement(track, ILcdModel.FIRE_LATER);
-        addElementTrack(aTrackId,aX,aY,aZ);
+        addElementTrack(aTrackId,longitud,latitude,altura);
       }
       model.fireCollectedModelChanges();
     }
   }
   
-  /**
-   * Updates an existing track with the specified properties.
-   *
-   * @param aLayerId the identifier of the track layer
-   * @param aTrackId the identifier for the track
-   * @param aX the new X coordinate
-   * @param aY the new Y coordinate
-   * @param aZ the new Z coordinate
-   * @param aTimeStamp the new timestamp
-   */
-  public void updateTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, long aTimeStamp) {
+
+  public void updateTrack(int aLayerId, int aTrackId, double latitude, double longitude, double altura, long aTimeStamp) {
 	  Map<String,Object> data = new HashMap<>();
 	  data.put("name", "");
       data.put("description", ""); 
       data.put("course", ""); 
       data.put("speed", "");
-      data.put("category", ""); 
-	  updateTrack(aLayerId, aTrackId, aX, aY, aZ, aTimeStamp, data);
+      data.put("category", "");
+      data.put("identity", ""); 
+	  updateTrack(aLayerId, aTrackId, latitude, longitude, altura, aTimeStamp, data);
   }
-  public void updateTrack(int aLayerId, int aTrackId, double aX, double aY, double aZ, long aTimeStamp, Map<String,Object> data) {
+  public void updateTrack(int aLayerId, int aTrackId, double latitude, double longitude, double altura, long aTimeStamp, Map<String,Object> data) {
     ILspLayer layer = fTrackLayers.get(aLayerId);
     if (layer != null) {
       ILcdDataObject track = getTrack(aLayerId, aTrackId);
@@ -2439,33 +2566,22 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.writeLock(model)) {
           String course = data.containsKey("course") ? data.get("course").toString() : "";
 		  String speed = data.containsKey("speed") ? data.get("speed").toString() : "";
-		  String label = "(" + "A:" + Double.toString(aZ) + ","  + "C:" + course + "," + "V:" + speed + ")";	
+		  String label = "(" + "A:" + Double.toString(altura) + ","  + "C:" + course + "," + "V:" + speed + ")";	
         	
-          ((ILcd3DEditablePoint) track.getValue(TrackDataTypes.LOCATION)).move3D(aX, aY, aZ);
+          ((ILcd3DEditablePoint) track.getValue(TrackDataTypes.LOCATION)).move3D(longitude, latitude, altura);
           //track.setValue(TrackDataTypes.TIMESTAMP, aTimeStamp);
           if(track_layer_ac_id != aLayerId && track_layer_flir_id != aLayerId )
           {	 
         	  track.setValue(TrackDataTypes.LABEL, label);
           }
           model.elementChanged(track, ILcdModel.FIRE_LATER);
-          updateElement(aTrackId,aX,aY,aZ);
+          updateElement(aTrackId,latitude,longitude,altura);
         }
         model.fireCollectedModelChanges();
       }
     }
   }
   
-  /**
-   * Adds a new track with the specified properties to the specified track layer.
-   *
-   * @param aLayerId the identifier of the track layer
-   * @param aTrackId the identifier for the track
-   * @param aX the X coordinate
-   * @param aY the Y coordinate
-   * @param aZ the Z coordinate
-   * @param aCallSign the call sign
-   * @param aTimeStamp the time stamp
-   */
   
   public void addPolygon(int aLayerId, int aTrackId, TLcd3DEditablePointList polygon, String aCallSign, long aTimeStamp)
   {
@@ -2813,7 +2929,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   }
   
 	public void addCircle(int aLayerId, int aTrackId, float center_point_x, float center_point_y, float center_point_z, String aCallSign, long aTimeStamp, double radius) {
-		TLcdLonLatHeightPoint center = new TLcdLonLatHeightPoint(center_point_x,center_point_y, center_point_z);
+		TLcdLonLatHeightPoint center = new TLcdLonLatHeightPoint(center_point_y, center_point_x, center_point_z);
 		ILcdPoint center_point = center.getPoint(0);
 		addCircle(aLayerId, aTrackId, center_point, aCallSign, aTimeStamp, radius);
 	}
@@ -2866,7 +2982,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   	
 
     public void updateCircle(int aLayerId, int aTrackId, float center_point_x, float center_point_y, float center_point_z , long aTimeStamp, double radius) {
-    	TLcdLonLatHeightPoint center = new TLcdLonLatHeightPoint(center_point_x,center_point_y, center_point_z);
+      TLcdLonLatHeightPoint center = new TLcdLonLatHeightPoint(center_point_y,center_point_x, center_point_z);
   	  ILcdPoint center_point = center.getPoint(0);
   	  updateCircle(aLayerId, aTrackId, center_point, aTimeStamp, radius);
     }
@@ -2913,12 +3029,10 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     }
 
   	protected String getFormattedTrackLocation(TLcdXYZPolypoint tLcdXYZPolypoint) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 	
 	protected String getFormattedTrackLocation(TLcdLonLatHeightPolypoint tLcdLonLatHeightPolypoint) {
-		// TODO Auto-generated method stub
 		return null;
 	}
   
@@ -2932,8 +3046,8 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	
   public String getFormatDMS(double lat, double lng, double height) {
 	  return (
-			  "Lon: " + convert.decimalLongitudeToDMS(lng) + 
-			  " Lat: " + convert.decimalLatitudeToDMS(lat) + 
+			  "Lat: " + convert.decimalLatitudeToDMS(lat) + 
+			  " Lon: " + convert.decimalLongitudeToDMS(lng) + 
 			  " Height: " + height
 	  );
   }
@@ -2964,7 +3078,12 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  );
   }
 	
-  private String getFormattedTrackLocation(ILcdPoint aTrack) {
+  private String getFormattedTrackLocation( ILcdPoint aTrack ) {
+	  TLcdLonLatHeightPoint convert_point = new TLcdLonLatHeightPoint(aTrack.getX(),aTrack.getY(),aTrack.getZ() );
+	  return getFormattedTrackLocation(convert_point);
+  }
+  
+  private String getFormattedTrackLocation(TLcdLonLatHeightPoint aTrack) {
 	  
 	  /*System.out.println( aTrack.getX());
 	  String gms = convertLongitudeGradeMinutesSeconds( aTrack.getX());
@@ -2973,24 +3092,23 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  System.out.println(gd);
 	  System.out.println("***************");*/
 
-
 	  if(default_unit_location == unity_id_GD)
 	  {
-		  return String.format("Lon: %.3f Lat: %.3f Height: %.3f", aTrack.getX(), aTrack.getY(), aTrack.getZ());
+		  return String.format("Lat: %.3f Lon: %.3f Height: %.3f", aTrack.getLat(), aTrack.getLon(), aTrack.getZ());
 	  }
 	  else if(default_unit_location == unity_id_GMS)
 	  {
-		  return String.format("%s",getFormatDMS(aTrack.getY(), aTrack.getX(), aTrack.getZ()));
+		  return String.format("%s",getFormatDMS(aTrack.getLat(), aTrack.getLon(), aTrack.getZ()));
 	  }
 	  else if(default_unit_location == unity_id_UTM)
 	  {
-		  return String.format("%s",getFormatUTM(aTrack.getY(), aTrack.getX(), aTrack.getZ()));
+		  return String.format("%s",getFormatUTM(aTrack.getLat(), aTrack.getLon(), aTrack.getZ()));
 	  }
 	  else if(default_unit_location == unity_id_MGRS)
 	  {
-		  return String.format("%s",getFormatMGRS(aTrack.getY(), aTrack.getX(), aTrack.getZ()));
+		  return String.format("%s",getFormatMGRS(aTrack.getLat(), aTrack.getLon(), aTrack.getZ()));
 	  }
-	  return String.format("Lon: %.3f Lat: %.3f Height: %.3f", aTrack.getX(), aTrack.getY(), aTrack.getZ());
+	  return String.format("Lat: %.3f Lon: %.3f Height: %.3f", aTrack.getLat(), aTrack.getLon(), aTrack.getZ());
   }  
   
   /**
@@ -3031,19 +3149,23 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
     return null;
   }
   
-  private List<Integer> getAllTrackIds(int aLayerId) {
-    ILspLayer layer = fTrackLayers.get(aLayerId);
+  private List<Integer> getAllTrackIds() {
     List<Integer> tracks_ids = new ArrayList<Integer>();
-    if (layer != null) {
-      ILcdModel model = layer.getModel();
-      try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.readLock(model)) {
-        Enumeration elements = model.elements();
-        while (elements.hasMoreElements()) {
-          ILcdDataObject track = (ILcdDataObject) elements.nextElement();
-          tracks_ids.add((Integer) track.getValue(TrackDataTypes.ID));
-        }
-      }
-    }
+    for(int k : tracksLayers.keySet())
+    {
+    	int aLayerId = Integer.parseInt( tracksLayers.get(k).get("layer_id").toString() );
+    	ILspLayer layer = fTrackLayers.get(aLayerId);
+	    if (layer != null) {
+	      ILcdModel model = layer.getModel();
+	      try (TLcdLockUtil.Lock autoUnlock = TLcdLockUtil.readLock(model)) {
+	        Enumeration elements = model.elements();
+	        while (elements.hasMoreElements()) {
+	          ILcdDataObject track = (ILcdDataObject) elements.nextElement();
+	          tracks_ids.add((Integer) track.getValue(TrackDataTypes.ID));
+	        }
+	      }
+	    }
+  	}
     return tracks_ids;
   }
 
@@ -3150,39 +3272,44 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  try{
 	      List<JSONObject> tracks_list = conection.getTracks();
 	      //Lists to check poins to remove
-	      List<Integer> all_tracks_ids_points = getAllTrackIds(track_layer_points_tracks);
-	      List<Integer> all_marks_ids_points = getAllTrackIds(track_layer_points_marks);
-	      List<Integer> tracks_ids_points_tracks_database = new ArrayList<Integer>();
-	      List<Integer> tracks_ids_points_marks_database = new ArrayList<Integer>();
+	      
+	      //tracksLayers
+	      List<Integer> all_tracks_marks_ids_points = getAllTrackIds();
+	      //List<Integer> all_tracks_ids_points = getAllTrackIds();
+	      //List<Integer> all_marks_ids_points = getAllTrackIds();
+	      //List<Integer> tracks_ids_points_tracks_database = new ArrayList<Integer>();
+	      //List<Integer> tracks_ids_points_marks_database = new ArrayList<Integer>();
+	      List<Integer> tracks_ids_points_marks_tracks_database = new ArrayList<Integer>();
 	      //Lists to check polygons to remove
 	      List<Integer> all_tracks_ids_polygon = getAllPolygonTrackLayersIds();
 	      List<Integer> all_tracks_ids_polygon_database = new ArrayList<Integer>();
-	      
 	      for(int t=0; t < tracks_list.size(); t++ )
 	      {
 	              float point_x = (float) tracks_list.get(t).get("x_geoposicion");
 	              float point_y = (float) tracks_list.get(t).get("y_geoposicion");
-	              float point_z = tracks_list.get(t).containsKey("elevacion") ? (float) tracks_list.get(t).get("elevacion") * 1000 : 0.0f; //m. 
+	              float point_z = tracks_list.get(t).containsKey("elevacion") ? (float) tracks_list.get(t).get("elevacion") * 1000 : 0.0f; //m.
 	              Map<String,Object> data = new HashMap<>();
 	              data.put("name", ((JSONObject)tracks_list.get(t)).get("nombre").toString());
 	              data.put("description", ((JSONObject)tracks_list.get(t)).get("descripcion").toString());
-	              data.put("lat", point_y);
-	              data.put("lng", point_x);
+	              data.put("lat", point_x);
+	              data.put("lng", point_y);
 	              data.put("hgt", point_z);
 	
 	              int type = (int)tracks_list.get(t).get("tipo_dato");
 	              if(type == 1 || type == 2)
 	              {
-	            	  int layer_type = ( 
-	            			  type == 1 
-	            			  ? track_layer_points_tracks 
-	            			  : 
-	            			  (
-	            					  type == 2 
-	            					  ? track_layer_points_marks
-	            					  : 0
-	            			  )  
-	            	  );
+//	            	  int layer_type = ( 
+//	            			  type == 1 
+//	            			  ? track_layer_points_tracks 
+//	            			  : 
+//	            			  (
+//	            					  type == 2 
+//	            					  ? track_layer_points_marks
+//	            					  : 0
+//	            			  )  
+//	            	  );
+	            	  int id = (int) tracks_list.get(t).get("id_dato_tactico");
+	            	  int layer_type = tracksLayers.containsKey(id) ? (int) tracksLayers.get(id).get("layer_id") : -1;
 	            	  
 	            	  JSONObject datos_json = (JSONObject) ((JSONObject)tracks_list.get(t)).get("datos_json");
 	            	  double course = 0.0;
@@ -3197,9 +3324,17 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	            		  data.put("speed", datos_json.get("velocidad").toString());
 	            		  speed = Double.parseDouble(datos_json.get("velocidad").toString());
 	            	  }
+	            	  String identidad = "1";
+	            	  if(datos_json.containsKey("identidad"))
+	            	  {
+	            		  data.put("identity", datos_json.get("identidad").toString());  
+	            		  identidad = datos_json.get("identidad").toString();
+	            	  }
+	            	  String categoria = "1";
 	            	  if(datos_json.containsKey("categoria"))
 	            	  {
 	            		  data.put("category", datos_json.get("categoria").toString());  
+	            		  categoria = datos_json.get("categoria").toString();
 	            	  }
 	            	  double rango_arma = 0.0;
 	            	  if(datos_json.containsKey("rango_arma"))
@@ -3207,60 +3342,76 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	            		  rango_arma = Double.parseDouble(datos_json.get("rango_arma").toString()) * 1000; //m.  
 	            	  }
 	            	  
-	            	  ILcdDataObject track = getTrack(layer_type, (int) tracks_list.get(t).get("ID"));
+	            	  ILcdDataObject track = getTrack(layer_type, (int) tracks_list.get(t).get("id_dato_tactico"));
 	                  if (track == null) 
 	                  {
-	                  	addTrack( layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, point_z, "TRACK", 0, data);
+	                	  if(layer_type == -1)
+	                	  {
+	                		  layer_type = addTrackMarckLayer(((JSONObject)tracks_list.get(t)).get("nombre").toString(), type, id, identidad, categoria);
+	                	  }
+	                  	  addTrack( layer_type, (int) tracks_list.get(t).get("id_dato_tactico"), point_x, point_y, point_z, "TRACK", 0, data);
 	                  }
 	              	  else
 	              	  {
-	              		updateTrack(layer_type, (int) tracks_list.get(t).get("ID"), point_x, point_y, point_z, 0, data);
+	              		updateTrack(layer_type, (int) tracks_list.get(t).get("id_dato_tactico"), point_x, point_y, point_z, 0, data);
+	              		//String old_identity = track.getValue(TrackDataTypes.IDENTITY).toString();
+	              		//System.out.println(old_identity);
+	              		//String old_category = track.getValue(TrackDataTypes.CATEGORY).toString();
+	              		//System.out.println(old_category);
+//	              		if( (!old_identity.equals(identidad)) || (!old_category.equals(categoria)) )
+//	              		{
+//	              			System.out.println("Cambiando icono");
+//	              			int layer_id = Integer.parseInt(tracksLayers.get(id).get("layer_id").toString());
+//	              			removeTrackLayer(layer_id);
+//	          	    	  	tracksLayers.remove(id);
+//	          	    	  	layer_type = addTrackMarckLayer(((JSONObject)tracks_list.get(t)).get("nombre").toString(), type, id, identidad, categoria);
+//	          	    	  	addTrack( layer_type, (int) tracks_list.get(t).get("id_dato_tactico"), point_x, point_y, point_z, "TRACK", 0, data);
+//	              		}
 	              	  }
 	                  
 	                //Prediccion de ubicación de todos los tracks
 	                if(prediction_all_tracks_mode && prediction_select_mode == false && type == 1 ) 
               		{
-	                	 Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_y, point_x, getPredictionTimeInMinutes(), course, speed);
+	                	 Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_x, point_y, getPredictionTimeInMinutes(), course, speed);
 	                	  
 	                	  prediction_time_point = new TLcdLonLatHeightPoint(
 	            			  Double.parseDouble(predicted_coords.get("longitude").toString()),
 	            			  Double.parseDouble(predicted_coords.get("latidude").toString()),
 	            			  point_z
 	                	  );
-	                	  
-	                	  if(prediction_tracks_painted.contains((int) tracks_list.get(t).get("ID")) == false)
+	                	  if(prediction_tracks_painted.contains((int) tracks_list.get(t).get("id_dato_tactico")) == false)
 	                	  {
 	                		  addTrack( 
 		                	    track_layer_points_tracks_predicted, 
-		                	    (int) tracks_list.get(t).get("ID"), 
+		                	    (int) tracks_list.get(t).get("id_dato_tactico"), 
+		                	    Double.parseDouble(predicted_coords.get("latidude").toString()),
 		                	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
-		                	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
 		                	    point_z, 
 		                	    "TRACK", 
 		                	    0, 
 		                	    data
 		                	  );
-	                		  addLine(track_layer_points_tracks_predicted, Integer.parseInt(tracks_list.get(t).get("ID").toString() + "" + tracks_list.get(t).get("ID").toString() ), new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, "Distance Prediction", 0);
-	                		  prediction_tracks_painted.add((int) tracks_list.get(t).get("ID"));
+	                		  addLine(track_layer_points_tracks_predicted, Integer.parseInt(tracks_list.get(t).get("id_dato_tactico").toString() + "" + tracks_list.get(t).get("id_dato_tactico").toString() ), new TLcdLonLatHeightPoint(point_y,point_x,point_z), prediction_time_point, "Distance Prediction", 0);
+	                		  prediction_tracks_painted.add((int) tracks_list.get(t).get("id_dato_tactico"));
 	                	  }
 	                	  else
 	                	  {
 	                		  updateTrack( 
 	                      	    track_layer_points_tracks_predicted, 
-	                      	    (int) tracks_list.get(t).get("ID"), 
+	                      	    (int) tracks_list.get(t).get("id_dato_tactico"), 
+	                      	    Double.parseDouble(predicted_coords.get("latidude").toString()),
 	                      	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
-	                      	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
 	                      	    point_z, 
 	                      	    0,
-	                      	    data
+	                      	    data  
 	                      	  ); 
-	                		  updateLine(track_layer_points_tracks_predicted, Integer.parseInt(tracks_list.get(t).get("ID").toString() + "" + tracks_list.get(t).get("ID").toString() ), new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, 0);
+	                		  updateLine(track_layer_points_tracks_predicted, Integer.parseInt(tracks_list.get(t).get("id_dato_tactico").toString() + "" + tracks_list.get(t).get("id_dato_tactico").toString() ), new TLcdLonLatHeightPoint(point_y,point_x,point_z), prediction_time_point, 0);
 	                	  }
-              		}  
+              		}
 	                //Prediccion de ubicación de un track seleccionado
-	                else if(prediction_select_mode && prediction_all_tracks_mode == false && ((int)tracks_list.get(t).get("ID")) == select_track_point_id && type == 1) 
+	                else if(prediction_select_mode && prediction_all_tracks_mode == false && ((int)tracks_list.get(t).get("id_dato_tactico")) == select_track_point_id && type == 1) 
                   	{
-                	  Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_y, point_x, getPredictionTimeInMinutes(), course, speed);
+                	  Map<String,Object> predicted_coords = convert.estimaDirectaByKmXH(point_x, point_y, getPredictionTimeInMinutes(), course, speed);
                 	  
                 	  prediction_time_point = new TLcdLonLatHeightPoint(
             			  Double.parseDouble(predicted_coords.get("longitude").toString()),
@@ -3273,14 +3424,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
                 		  addTrack( 
 	                	    track_layer_points_tracks_predicted, 
 	                	    -255, 
+	                	    Double.parseDouble(predicted_coords.get("latidude").toString()),
 	                	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
-	                	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
 	                	    point_z, 
 	                	    "TRACK", 
 	                	    0, 
 	                	    data
 	                	  );
-                		  addLine(track_layer_points_tracks_predicted, -256, new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, "Distance Prediction", 0);
+                		  addLine(track_layer_points_tracks_predicted, -256, new TLcdLonLatHeightPoint(point_y,point_x,point_z), prediction_time_point, "Distance Prediction", 0);
                 		  prediction_point_create = true;
                 	  }
                 	  else
@@ -3288,80 +3439,79 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
                 		  updateTrack( 
                       	    track_layer_points_tracks_predicted, 
                       	    -255, 
+                      	    Double.parseDouble(predicted_coords.get("latidude").toString()),
                       	    Double.parseDouble(predicted_coords.get("longitude").toString()), 
-                      	    Double.parseDouble(predicted_coords.get("latidude").toString()), 
                       	    point_z, 
                       	    0,
                       	    data
                       	  ); 
-                		  updateLine(track_layer_points_tracks_predicted, -256, new TLcdLonLatHeightPoint(point_x,point_y,point_z), prediction_time_point, 0);
+                		  updateLine(track_layer_points_tracks_predicted, -256, new TLcdLonLatHeightPoint(point_y,point_x,point_z), prediction_time_point, 0);
                 	  }
                   	}
               		/////////
-	                  
 	                  
 					  //Rango arma
 					  ILspLayer layer = fTrackLayers.get(rangos_armas_layer_id);
 					  if (layer != null) 
 					  {
-						ILcdDataObject track_ra = getTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"));
+						ILcdDataObject track_ra = getTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("id_dato_tactico"));
 						if (track_ra == null) {
 							if(rango_arma > 0.0) 
 							{
-								addCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"), point_x, point_y, 1000, "Rango Arma Track", 0, rango_arma);
+								addCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("id_dato_tactico"), point_x, point_y, 1000, "Rango Arma Track", 0, rango_arma);
 							}
 						}
 						else {
 							if(rango_arma > 0.0) 
 							{
-								updateCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"), point_x, point_y, 1000, 0, rango_arma);	
+								updateCircle(rangos_armas_layer_id, (int) tracks_list.get(t).get("id_dato_tactico"), point_x, point_y, 1000, 0, rango_arma);	
 							}
 							else 
 							{
-							removeTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("ID"));
+								removeTrack(rangos_armas_layer_id, (int) tracks_list.get(t).get("id_dato_tactico"));
 							}
 						}
 					  }
             		    
-	                  if(type==1)
-	                  {
-	                	  tracks_ids_points_tracks_database.add((int) tracks_list.get(t).get("ID"));
-	                  }
-	                  if(type==2)
-	                  {
-	                	  tracks_ids_points_marks_database.add((int) tracks_list.get(t).get("ID"));
-	                  }
+//	                  if(type==1)
+//	                  {
+//	                	  tracks_ids_points_tracks_database.add((int) tracks_list.get(t).get("id_dato_tactico"));
+//	                  }
+//	                  if(type==2)
+//	                  {
+//	                	  tracks_ids_points_marks_database.add((int) tracks_list.get(t).get("id_dato_tactico"));
+//	                  }
+	                  tracks_ids_points_marks_tracks_database.add((int) tracks_list.get(t).get("id_dato_tactico"));
 	              }
 	              else if(type == 3 || type == 4 || type == 5)
 	              {
-	            	  int id_track = (int) tracks_list.get(t).get("ID");
+	            	  int id_track = (int) tracks_list.get(t).get("id_dato_tactico");
 	            	  //In recording mode the original polygon will'n be paint
 	            	  if(rec_polygon_id != id_track)
 	            	  {
 		            	  TLcd3DEditablePointList track_points = new TLcd3DEditablePointList();
 		            	  List<JSONObject> extra_points = conection.getExtraPoints((JSONObject)tracks_list.get(t));
-		            	  for(int ep=0;ep < extra_points.size();ep++) {
-		            		  JSONObject extra_point = extra_points.get(ep);
+		            	  for (JSONObject extra_point : extra_points) 
+		            	  {
 		            		  float lat = Float.parseFloat( extra_point.get("latitud").toString());
 		            		  float lng = Float.parseFloat( extra_point.get("longitud").toString());
+		            		  int index = Integer.parseInt(extra_point.get("index").toString());
 		            		  //Plan de vuelo
 		            		  if(type == 5)
 		            		  {
-		            			  track_points.insert3DPoint(ep, new TLcdXYZPoint(lat, lng, 10000));
+		            			  track_points.insert3DPoint(index, new TLcdXYZPoint(lng, lat, 10000));
 		            		  }
 		            		  //Visión FLIR
 		            		  else if(type == 4) 
 		            		  {
-		            			  track_points.insert3DPoint(ep, new TLcdXYZPoint(lat, lng, point_z));
+		            			  track_points.insert3DPoint(index, new TLcdXYZPoint(lng, lat,  point_z));
 		            		  }
 		            		  //Áreas (tipo 3)
 		            		  else 
 		            		  {
-		            			  track_points.insert3DPoint(ep, new TLcdXYZPoint(lat, lng, 0));  
+		            			  track_points.insert3DPoint(index, new TLcdXYZPoint(lng, lat, 0));  
 		            		  }
-		            		  
 		            	  }
-		            	  
 		            	  
 		            	  JSONObject datos_json = (JSONObject) ((JSONObject)tracks_list.get(t)).get("datos_json");
 		                  String color_db = datos_json.get("color").toString();
@@ -3369,7 +3519,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		                  if(color.equals("") || color.equals("0")) {
 		                	  color = layerFactory.generateColorRandom();
 		                  }
-		                  //System.out.println("Color polygon: " + color);
 		                  layerFactory.setFillColor(color);	 		                  
 		                  layerFactory.setIconPath("");                 	
 		                  if(isElementInPolygonTrackLayers(id_track) == false){
@@ -3428,7 +3577,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	            	  }
 	              }
 	      }
-	      
 	      //AC point
 	      if(ac_point != null) {
 	    	  Map<String,Object> data = new HashMap<>();
@@ -3442,14 +3590,13 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         	  data.put("speed", speed);
         	  
 	          if (track == null) {
-	          	addTrack(track_layer_ac_id, track_ac_id, ac_point.getX(), ac_point.getY(), ac_point.getZ(), "AC", 0, data);
+	          	addTrack(track_layer_ac_id, track_ac_id, ac_point.getLat(), ac_point.getLon(), ac_point.getHeight(), "AC", 0, data);
 	          }
 	      	  else
 	      	  {
-	      		updateTrack(track_layer_ac_id, track_ac_id, ac_point.getX(), ac_point.getY(), ac_point.getZ(), 0, data);
+	      		updateTrack(track_layer_ac_id, track_ac_id, ac_point.getLat(), ac_point.getLon(), ac_point.getHeight(), 0, data);
 	      	  }
 	      }
-	      
 	      //FLIR point
 	      if(flir_point != null) {
 	    	  Map<String,Object> data = new HashMap<>();
@@ -3463,29 +3610,47 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
         	  data.put("speed", speed);
         	  
 	          if (track == null) {
-	        	  addTrack(track_layer_flir_id, track_flir_id, flir_point.getX(), flir_point.getY(), flir_point.getZ(), "FLIR", 0, data);
+	        	  addTrack(track_layer_flir_id, track_flir_id, flir_point.getLat(), flir_point.getLon(), flir_point.getHeight(), "FLIR", 0, data);
 	          }
 	      	  else
 	      	  {
-	      		  updateTrack(track_layer_flir_id, track_flir_id, flir_point.getX(), flir_point.getY(), flir_point.getZ(), 0, data);
+	      		  updateTrack(track_layer_flir_id, track_flir_id, flir_point.getLat(), flir_point.getLon(), flir_point.getHeight(), 0, data);
 	      	  }
 	      }
-	      
 	      //Remove points tracks
-	      List<Integer> track_ids_points_traks_remove = all_tracks_ids_points.stream()
-	    	        .filter(i -> !tracks_ids_points_tracks_database.contains(i))
+//	      List<Integer> track_ids_points_traks_remove = all_tracks_marks_ids_points.stream()
+//	    	        .filter(i -> !tracks_ids_points_tracks_database.contains(i))
+//	    	        .collect(Collectors.toList());
+//	      for (Integer track_id_point_remove : track_ids_points_traks_remove) {
+//	    	  removeTrack(track_layer_points_tracks, track_id_point_remove);
+//	    	  removeTrack(rangos_armas_layer_id, track_id_point_remove);
+//	      }
+//	      //Remove points marcks
+//	      List<Integer> track_ids_points_marks_remove = all_tracks_marks_ids_points.stream()
+//	    	        .filter(i -> !tracks_ids_points_marks_database.contains(i))
+//	    	        .collect(Collectors.toList());
+//	      for (Integer track_id_point_remove : track_ids_points_marks_remove) {
+//	    	  removeTrack(track_layer_points_marks, track_id_point_remove);
+//	    	  removeTrack(rangos_armas_layer_id, track_id_point_remove);
+//	      }
+	      
+	      //Remove points tracks y marcks
+	      List<Integer> track_ids_points_marks_remove = all_tracks_marks_ids_points.stream()
+	    	        .filter(i -> !tracks_ids_points_marks_tracks_database.contains(i))
 	    	        .collect(Collectors.toList());
-	      for (Integer track_id_point_remove : track_ids_points_traks_remove) {
-	    	  removeTrack(track_layer_points_tracks, track_id_point_remove);
-	    	  removeTrack(rangos_armas_layer_id, track_id_point_remove);
-	      }
-	      //Remove points marcks
-	      List<Integer> track_ids_points_marks_remove = all_marks_ids_points.stream()
-	    	        .filter(i -> !tracks_ids_points_marks_database.contains(i))
-	    	        .collect(Collectors.toList());
+//	      System.out.println("track_ids_points_marks_remove" );
+//	      utils.printIntList(track_ids_points_marks_remove);
+//	      System.out.println( "all_tracks_marks_ids_points" );
+//	      utils.printIntList(all_tracks_marks_ids_points);
+//	      System.out.println("tracks_ids_points_marks_tracks_database" );
+//	      utils.printIntList(tracks_ids_points_marks_tracks_database);
+	      
 	      for (Integer track_id_point_remove : track_ids_points_marks_remove) {
-	    	  removeTrack(track_layer_points_marks, track_id_point_remove);
+	    	  //removeTrack(layer_id, track_id_point_remove);
+	    	  int layer_id = Integer.parseInt(tracksLayers.get(track_id_point_remove).get("layer_id").toString());
+	    	  removeTrackLayer(layer_id);
 	    	  removeTrack(rangos_armas_layer_id, track_id_point_remove);
+	    	  tracksLayers.remove(track_id_point_remove);
 	      }
 	      //Remove polygons layers
 	      List<Integer> track_ids_polygon_remove = all_tracks_ids_polygon.stream()
@@ -3497,7 +3662,6 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	    	  removeTrackLayer(polygon_layerId);
 	    	  removePolygonTrackLayers(track_id_polygon_remove);
 	      }
-	      
 	      
 	  }
 	  catch(SQLException q) {
@@ -3530,7 +3694,7 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 		    if (layer != null) {
 		      ILcdModel model = layer.getModel();
 		      TLcd3DEditablePointList clicks_points = fMouseEventHandler.getPaintPoints();
-		      ILcdPoint mouse_position = fMouseEventHandler.getMousePosition();
+		      TLcdLonLatHeightPoint mouse_position = fMouseEventHandler.getMousePosition();
 		      if(clicks_points.getPointCount() > 0)
 		      {
 				if(create_polygon_user_clicks == false) {
@@ -3567,30 +3731,31 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
 	  }
   }
   
-  private ILcdPoint generateRandomPoint() {
-	  int min_lat = 95;
-	  int max_lat = 100;
-	  int min_lng = 18;
-	  int max_lng = 20;
-	  double lat = (Math.random()*(max_lat-min_lat+1)+min_lat)*(-1);
-	  double lng = Math.random()*(max_lng-min_lng+1)+min_lng;
-	  TLcdLonLatHeightPoint p = new TLcdLonLatHeightPoint(lat,lng,0);
-	  ILcdPoint point = p.getPoint(0);
-	  System.out.println(point);
-	  return point;  
+  private TLcdLonLatHeightPoint generateRandomPoint() {
+	  int min_lng = 95;
+	  int max_lng = 100;
+	  int min_lat = 18;
+	  int max_lat = 20;
+	  double lat = Math.random()*(max_lat-min_lat+1)+min_lat;
+	  double lng = (Math.random()*(max_lng-min_lng+1)+min_lng)*(-1);
+	  TLcdLonLatHeightPoint p = new TLcdLonLatHeightPoint(lng,lat,0);
+	  //System.out.println(p);
+	  return p;
+	  //ILcdPoint point = p.getPoint(0);
+	  //return point;  
   }
   
   private TLcd2DEditablePointList generateRandomPolygon() {
 	  TLcd2DEditablePointList point_list_2d = new TLcd2DEditablePointList();
 	  int points_count = (int)(Math.random()*(7-3+1)+3);
-	  int min_lat = 95;
-	  int max_lat = 100;
-	  int min_lng = 18;
-	  int max_lng = 20;
+	  int min_lng = 95;
+	  int max_lng = 100;
+	  int min_lat = 18;
+	  int max_lat = 20;
 	  for(int p = 0; p <= points_count;p++) {
-		  double lat = (Math.random()*(max_lat-min_lat+1)+min_lat)*(-1);
-		  double lng = Math.random()*(max_lng-min_lng+1)+min_lng;
-		  point_list_2d.insert2DPoint(p, new TLcdXYPoint(lat,lng));
+		  double lat = Math.random()*(max_lat-min_lat+1)+min_lat;
+		  double lng = (Math.random()*(max_lng-min_lng+1)+min_lng)*(-1);
+		  point_list_2d.insert2DPoint(p, new TLcdXYPoint(lng,lat));
 	  }
 	  return point_list_2d;
   }
@@ -3598,15 +3763,14 @@ public class SampleApplicationProxy1 extends LightspeedViewProxy
   private TLcd3DEditablePointList generate3DRandomPolygon() {
 	  TLcd3DEditablePointList point_list_3d = new TLcd3DEditablePointList();
 	  int points_count = (int)(Math.random()*(7-3+1)+3);
-	  int min_lat = 95;
-	  int max_lat = 100;
-	  int min_lng = 18;
-	  int max_lng = 20;
+	  int min_lng = 95;
+	  int max_lng = 100;
+	  int min_lat = 18;
+	  int max_lat = 20;
 	  for(int p = 0; p <= points_count;p++) {
-		  double lat = (Math.random()*(max_lat-min_lat+1)+min_lat)*(-1);
-		  double lng = Math.random()*(max_lng-min_lng+1)+min_lng;
-		  point_list_3d.insert3DPoint(p, new TLcdXYZPoint(lat,lng,0));
-		  System.out.println("Generando punto :" +lat+","+lng+","+0);
+		  double lat = Math.random()*(max_lat-min_lat+1)+min_lat;
+		  double lng = (Math.random()*(max_lng-min_lng+1)+min_lng)*(-1);
+		  point_list_3d.insert3DPoint(p, new TLcdXYZPoint(lng,lat,0));
 	  }
 	  return point_list_3d;
   }

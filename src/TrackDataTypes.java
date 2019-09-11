@@ -33,6 +33,7 @@ import com.luciad.util.TLcdHasGeometryAnnotation;
     static final String COURSE = "Rumbo";
     static final String SPEED = "Velocidad";
     static final String CATEGORY = "Categoría";
+    static final String IDENTITY = "Identidad";
     static final String LABEL = "Label";
 
     static final String TRACK_TYPE = "Track"; //Starts with capital, same as Java class
@@ -68,6 +69,7 @@ import com.luciad.util.TLcdHasGeometryAnnotation;
       trackBuilder.addProperty(COURSE, TLcdCoreDataTypes.STRING_TYPE);
       trackBuilder.addProperty(SPEED, TLcdCoreDataTypes.STRING_TYPE);
       trackBuilder.addProperty(CATEGORY, TLcdCoreDataTypes.STRING_TYPE);
+      trackBuilder.addProperty(IDENTITY, TLcdCoreDataTypes.STRING_TYPE);
       
       // Finalize the creation
       TLcdDataModel dataModel = builder.createDataModel();
